@@ -55,7 +55,7 @@ C_SUN = (211, 84, 0)
 C_DARK = (44, 62, 80)
 C_LIGHT = (245, 247, 248)
 
-# --- REGLAS DE NEGOCIO Y TURNOS ---
+# --- REGLAS DE NEGOCIO Y TURNOS (FIREWALL LÓGICO) ---
 ENFERMERAS_ROL_A = ["Consuelo Ceja Liborio", "Jaqueline Hernández Sosa"]
 ENFERMERAS_ROL_B = ["Silvia Rodríguez Reynaga", "Guadalupe Georgia Lopez Ceja"]
 ENFERMERAS_NOCHE = ENFERMERAS_ROL_A + ENFERMERAS_ROL_B
@@ -139,18 +139,22 @@ def generar_pdf_legal_bytes(checks_dict, porcentaje):
     
     pdf.set_fill_color(*C_NAVY)
     pdf.set_text_color(255, 255, 255)
-    pdf.set_font('Helvetica', 'B', 10)
-    pdf.cell(140, 8, "REQUISITO NORMATIVO", 1, 0, 'C', True)
-    pdf.cell(50, 8, "ESTATUS", 1, 1, 'C', True)
+    pdf.set_font('Helvetica', 'B', 9)
+    pdf.cell(150, 8, "REQUISITO NORMATIVO", 1, 0, 'C', True)
+    pdf.cell(40, 8, "ESTATUS", 1, 1, 'C', True)
     
-    pdf.set_font('Helvetica', '', 10)
+    pdf.set_font('Helvetica', '', 8)
     fill_row = False
     
     for req, estado in checks_dict.items():
         pdf.set_fill_color(*C_LIGHT) if fill_row else pdf.set_fill_color(255, 255, 255)
         pdf.set_text_color(*C_DARK)
         
-        pdf.cell(140, 8, f" {req}", 1, 0, 'L', fill_row)
+        # Truncar texto muy largo para que no rompa la tabla
+        req_texto = f" {req}"
+        if len(req_texto) > 90: req_texto = req_texto[:87] + "..."
+        
+        pdf.cell(150, 8, req_texto, 1, 0, 'L', fill_row)
         
         if estado:
             pdf.set_text_color(39, 174, 96)
@@ -159,9 +163,9 @@ def generar_pdf_legal_bytes(checks_dict, porcentaje):
             pdf.set_text_color(231, 76, 60)
             txt_estado = "PENDIENTE"
             
-        pdf.set_font('Helvetica', 'B', 9)
-        pdf.cell(50, 8, txt_estado, 1, 1, 'C', fill_row)
-        pdf.set_font('Helvetica', '', 10)
+        pdf.set_font('Helvetica', 'B', 8)
+        pdf.cell(40, 8, txt_estado, 1, 1, 'C', fill_row)
+        pdf.set_font('Helvetica', '', 8)
         
         fill_row = not fill_row
 
@@ -327,7 +331,7 @@ def main():
         st.plotly_chart(fig_evol, use_container_width=True)
 
     with tabs[2]:
-        st.write("### Rendimiento Detallado por Personal (Segregación de Turnos)")
+        st.write("### Rendimiento Detallado por Personal (Segregación Estricta)")
         
         # --- LÓGICA ESTRICTA DE EXCLUSIVIDAD MUTUA ---
         personal_diurno = set(df_rop[col_enf].dropna().unique()) - set(ENFERMERAS_NOCHE)
@@ -338,43 +342,75 @@ def main():
             if emp in ENFERMERAS_NOCHE:
                 n_score = pct_nocturnos.get(emp, None)
                 if n_score is not None:
-                    ranking_data.append({"Colaborador": emp, "Turno Efectivo": "Nocturno (Por Persona)", "Puntaje (%)": round(n_score, 1)})
+                    ranking_data.append({"Colaborador": emp, "Turno Efectivo": "Nocturno (Auditoría Conductual)", "Puntaje (%)": round(n_score, 1)})
             else:
                 v_score = df_rop[df_rop[col_enf] == emp]['Promedio'].mean()
                 if pd.notna(v_score):
-                    ranking_data.append({"Colaborador": emp, "Turno Efectivo": "Vespertino (Por Ropero/Zona)", "Puntaje (%)": round(v_score, 1)})
+                    ranking_data.append({"Colaborador": emp, "Turno Efectivo": "Vespertino (Auditoría Física)", "Puntaje (%)": round(v_score, 1)})
             
         df_ranking = pd.DataFrame(ranking_data).sort_values("Puntaje (%)", ascending=False).reset_index(drop=True)
         
-        c_r1, c_r2 = st.columns([1, 1])
+        c_r1, c_r2 = st.columns([1.2, 0.8])
         with c_r1:
-            st.write("🏆 **Tabla de Posiciones General**")
+            st.write("🏆 **Ranking General Unificado**")
             st.dataframe(df_ranking, use_container_width=True)
             
         with c_r2:
-            st.write("🔍 **Buscador Individual**")
-            sel = st.selectbox("Selecciona para ver métricas específicas:", personal_total)
+            st.write("🔍 **Buscador de Expediente Operativo**")
+            sel = st.selectbox("Selecciona colaborador(a):", personal_total)
             
+            # --- EVALUACIÓN EXCLUSIVA POR TURNO ---
             if sel in ENFERMERAS_NOCHE:
-                st.metric("🌙 Desempeño Nocturno (Evaluación Personal - Rondines)", f"{pct_nocturnos.get(sel, 0):.1f}%")
-                st.info("El KPI nocturno se calcula en base a la ejecución de rondines de seguridad estipulados para su rol.")
+                st.metric("🌙 Desempeño Nocturno (Conductual)", f"{pct_nocturnos.get(sel, 0):.1f}%")
+                st.info("💡 **Aviso Metodológico:**\nEste KPI evalúa estrictamente el cumplimiento del protocolo de **rondines de seguridad**. Su calificación depende de sus horas de escaneo vs la meta de su Rol (A o B).")
             else:
                 df_sel = df_rop[df_rop[col_enf] == sel]
                 if not df_sel.empty:
-                    st.metric("☀️ Desempeño Vespertino (Evaluación Física - Roperos/Camas)", f"{df_sel['Promedio'].mean():.1f}%")
-                    st.info("El KPI vespertino evalúa las condiciones de la zona física (Camas/Roperos) a la que fue asignado en el turno.")
+                    st.metric("☀️ Desempeño Vespertino (Físico)", f"{df_sel['Promedio'].mean():.1f}%")
+                    st.info("💡 **Aviso Metodológico:**\nEste KPI **NO evalúa a la persona en abstracto**, sino las condiciones físicas (5S y Tendido) de la zona específica que se le asignó durante su turno.")
                     st.dataframe(df_sel[['Fecha', c_5s, c_cam, 'Promedio']], use_container_width=True)
                 else:
-                    st.warning("Sin registros operativos en este periodo.")
+                    st.warning("Sin registros operativos.")
 
     with tabs[3]:
         st.write("### Checklist de Blindaje Institucional")
-        st.write("Controles preventivos requeridos para auditorías gubernamentales (STPS, COPRISJAL, Protección Civil).")
+        st.write("Auditoría preventiva de acuerdo con las normativas municipales, estatales y federales vigentes.")
         
+        # --- MATRIZ LEGAL EXTRAÍDA DE "Normas-3.pdf" ---
         categorias = {
-            "Riesgo Comercial y Sanitario": ["Contrato de Adhesión PROFECO", "Aviso de Funcionamiento Vigente", "NOM-087-SEMARNAT (RPBI)", "NOM-251-SSA1 (Higiene Cocina)"],
-            "Protección Civil y Bomberos": ["Programa Interno (PIPC)", "Póliza de Responsabilidad Civil", "Dictamen Estructural", "Mantenimiento Extintores"],
-            "Riesgo Laboral (STPS)": ["NOM-035 (Psicosocial)", "NOM-019 (Comisión Mixta)", "Constancias de Habilidades DC-3"]
+            "Regulación Sanitaria (COPRISJAL / SSA)": [
+                "Aviso de Funcionamiento y Responsable Sanitario exhibido",
+                "Aviso de Botiquín/Farmacia y Recetario Controlado autorizado",
+                "NOM-031-SSA3: Manuales, Accesibilidad física y Bitácoras diarias",
+                "NOM-004-SSA3: Expedientes Clínicos integrados y con resguardo seguro",
+                "NOM-087-SEMARNAT: Botes rígidos, bolsas rojas y contrato de RPBI",
+                "NOM-045 y NOM-251: Protocolos de Infecciones, Higiene y Salud en Cocina",
+                "Certificado vigente de fumigación y control de plagas"
+            ],
+            "Seguridad y Salud Laboral (STPS)": [
+                "Reglamento Interior de Trabajo (RIT) depositado ante autoridad",
+                "NOM-035-STPS: Política de prevención de Riesgos Psicosociales",
+                "NOM-019-STPS: Comisión de Seguridad e Higiene conformada",
+                "NOM-036-STPS: Prevención de Riesgos Ergonómicos (Carga de pacientes)",
+                "NOM-030-STPS: Diagnóstico Integral de seguridad en el trabajo",
+                "Constancias de Habilidades Laborales emitidas (DC-3)"
+            ],
+            "Protección Civil y Ecología (Zapopan)": [
+                "Programa Interno de Protección Civil (PIPC) con visto bueno",
+                "Póliza de Responsabilidad Civil (Daños a terceros) vigente",
+                "Dictámenes Técnicos vigentes: Estructural (DRO), Eléctrico y Gas LP",
+                "Equipamiento: Extintores (ABC/K), Detectores de humo, Señalética",
+                "Brigadas capacitadas y evidencia de mínimo 2 simulacros anuales",
+                "Mantenimiento de trampas de grasa y recolección de aceite vegetal",
+                "Licencia Municipal de Giro Comercial vigente"
+            ],
+            "Cumplimiento Legal y PROFECO": [
+                "Aviso de Privacidad Integral exhibido (INAI)",
+                "Consentimiento expreso firmado para tratamiento de Datos Sensibles",
+                "Contratos de prestación de servicios registrados ante PROFECO",
+                "Constancia de registro vigente ante Asistencia Social (IJAS/DIF)",
+                "Contratos laborales actualizados con cláusulas de confidencialidad"
+            ]
         }
         
         if 'checks_normas' not in st.session_state:
@@ -392,14 +428,14 @@ def main():
             
         porcentaje_legal = (sum(st.session_state.checks_normas.values()) / len(st.session_state.checks_normas)) * 100
         st.write("---")
-        st.write(f"#### Integridad Institucional actual: {int(porcentaje_legal)}%")
+        st.write(f"#### Índice de Integridad Institucional: {int(porcentaje_legal)}%")
         st.progress(porcentaje_legal / 100)
         
         pdf_bytes = generar_pdf_legal_bytes(st.session_state.checks_normas, porcentaje_legal)
         st.download_button(
-            label="📄 Descargar Reporte Legal en PDF",
+            label="📄 Descargar Reporte de Blindaje Legal (PDF)",
             data=pdf_bytes,
-            file_name=f"Reporte_Blindaje_Legal_{datetime.now().strftime('%Y_%m_%d')}.pdf",
+            file_name=f"Reporte_Legal_Sunhaven_{datetime.now().strftime('%Y_%m_%d')}.pdf",
             mime="application/pdf",
         )
 
