@@ -1,5 +1,10 @@
 streamlit
 pandas
+numpy
 gspread
-openpyxl
+oauth2client
 plotly
+matplotlib
+seaborn
+openpyxl
+fpdf
