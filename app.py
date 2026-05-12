@@ -215,7 +215,7 @@ def main():
         df_time_v = df_rop.groupby('Fecha')['Promedio'].mean()
         df_time_s = df_serv.groupby('Fecha')[[c_uni, c_bas, c_lav_r, c_lav_j, c_lim]].mean().mean(axis=1)
         
-        df_evol = pd.DataFrame({"Vespertino": df_time_v, "Servicios": df_time_s}).fillna(method='ffill')
+        df_evol = pd.DataFrame({"Vespertino": df_time_v, "Servicios": df_time_s}).ffill().fillna(0)df_evol = pd.DataFrame({"Vespertino": df_time_v, "Servicios": df_time_s}).ffill().fillna(0)
         fig_evol = px.line(df_evol, labels={"value": "Cumplimiento (%)", "Fecha": "Día"}, color_discrete_sequence=[HEX_NAVY, HEX_GREEN])
         fig_evol.add_hline(y=90, line_dash="dot", line_color="red")
         st.plotly_chart(fig_evol, use_container_width=True)
