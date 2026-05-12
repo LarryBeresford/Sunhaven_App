@@ -298,7 +298,7 @@ def main():
 
     with t5:
         st.write("### Consola de Verificación de Datos")
-        st.info("Estas tablas muestran la información "cruda" extraída de Google Sheets una vez que el traductor ha convertido los textos a números.")
+        st.info('Estas tablas muestran la información "cruda" extraída de Google Sheets una vez que el traductor ha convertido los textos a números.')
         col_d1, col_d2 = st.columns(2)
         with col_d1:
             st.write("**Base de Datos: Servicios Generales**")
