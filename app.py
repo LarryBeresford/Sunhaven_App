@@ -55,9 +55,10 @@ C_SUN = (211, 84, 0)
 C_DARK = (44, 62, 80)
 C_LIGHT = (245, 247, 248)
 
-# --- REGLAS DE NEGOCIO ---
+# --- REGLAS DE NEGOCIO Y TURNOS ---
 ENFERMERAS_ROL_A = ["Consuelo Ceja Liborio", "Jaqueline Hernández Sosa"]
 ENFERMERAS_ROL_B = ["Silvia Rodríguez Reynaga", "Guadalupe Georgia Lopez Ceja"]
+ENFERMERAS_NOCHE = ENFERMERAS_ROL_A + ENFERMERAS_ROL_B
 
 # ==========================================
 # 1. MOTOR PDF LEGAL
@@ -136,7 +137,6 @@ def generar_pdf_legal_bytes(checks_dict, porcentaje):
     pdf.cell(0, 8, f"Nivel de cumplimiento general de la institución: {porcentaje:.1f}%", 0, 1)
     pdf.ln(5)
     
-    # Tabla de Checks
     pdf.set_fill_color(*C_NAVY)
     pdf.set_text_color(255, 255, 255)
     pdf.set_font('Helvetica', 'B', 10)
@@ -264,7 +264,7 @@ def main():
         df_ron['Bloque'] = df_ron['Hora'].apply(get_bloque)
         
         pct_nocturnos = {}
-        for enf in ENFERMERAS_ROL_A + ENFERMERAS_ROL_B:
+        for enf in ENFERMERAS_NOCHE:
             meta = (turnos_A if enf in ENFERMERAS_ROL_A else turnos_B) * 3
             realizadas = len(df_ron[(df_ron['Enfermera'] == enf) & (df_ron['Bloque'].notnull())][['Fecha', 'Bloque']].drop_duplicates())
             pct_nocturnos[enf] = min((realizadas / meta * 100), 100) if meta > 0 else 100
@@ -311,7 +311,7 @@ def main():
             st.plotly_chart(fig, use_container_width=True)
         with c2:
             st.write("### Análisis de Causa Raíz")
-            crit = {"Uniforme": df_serv[c_uni].mean(), "Basura": df_serv[c_bas].mean(), "Ropa": df_serv[c_lav_r].mean(), "Jabón": df_serv[c_lav_j].mean(), "Zonas": df_serv[c_lim].mean(), "5S": df_rop[c_5s].mean(), "Camas": df_rop[c_cam].mean(), "Nocturno": val_nocturno}
+            crit = {"Uniforme": df_serv[c_uni].mean(), "Basura": df_serv[c_bas].mean(), "Ropa": df_serv[c_lav_r].mean(), "Jabón": df_serv[c_lav_j].mean(), "Zonas": df_serv[c_lim].mean(), "5S Roperos": df_rop[c_5s].mean(), "Tendido Camas": df_rop[c_cam].mean(), "Rondines Noct.": val_nocturno}
             df_c = pd.DataFrame.from_dict(crit, orient='index', columns=['V']).sort_values('V', ascending=True).reset_index()
             fig_c = px.bar(df_c, x='V', y='index', orientation='h', text_auto='.1f', color_discrete_sequence=[HEX_RED])
             fig_c.add_vline(x=90, line_dash="dash", line_color="black")
@@ -327,28 +327,22 @@ def main():
         st.plotly_chart(fig_evol, use_container_width=True)
 
     with tabs[2]:
-        st.write("### Rendimiento Detallado por Personal (Ranking)")
+        st.write("### Rendimiento Detallado por Personal (Segregación de Turnos)")
         
-        # --- Construcción del Ranking Inteligente ---
-        personal_total = sorted(list(set(df_rop[col_enf].dropna().unique()).union(set(ENFERMERAS_ROL_A + ENFERMERAS_ROL_B))))
+        # --- LÓGICA ESTRICTA DE EXCLUSIVIDAD MUTUA ---
+        personal_diurno = set(df_rop[col_enf].dropna().unique()) - set(ENFERMERAS_NOCHE)
+        personal_total = sorted(list(personal_diurno.union(set(ENFERMERAS_NOCHE))))
+        
         ranking_data = []
-        
         for emp in personal_total:
-            v_score = df_rop[df_rop[col_enf] == emp]['Promedio'].mean()
-            n_score = pct_nocturnos.get(emp, None)
-            
-            if pd.notna(v_score) and n_score is not None:
-                promedio_final = (v_score + n_score) / 2
-                tipo = "Vespertino / Nocturno"
-            elif pd.notna(v_score):
-                promedio_final = v_score
-                tipo = "Vespertino"
-            elif n_score is not None:
-                promedio_final = n_score
-                tipo = "Nocturno"
+            if emp in ENFERMERAS_NOCHE:
+                n_score = pct_nocturnos.get(emp, None)
+                if n_score is not None:
+                    ranking_data.append({"Colaborador": emp, "Turno Efectivo": "Nocturno (Por Persona)", "Puntaje (%)": round(n_score, 1)})
             else:
-                continue
-            ranking_data.append({"Colaborador": emp, "Turno Efectivo": tipo, "Puntaje (%)": round(promedio_final, 1)})
+                v_score = df_rop[df_rop[col_enf] == emp]['Promedio'].mean()
+                if pd.notna(v_score):
+                    ranking_data.append({"Colaborador": emp, "Turno Efectivo": "Vespertino (Por Ropero/Zona)", "Puntaje (%)": round(v_score, 1)})
             
         df_ranking = pd.DataFrame(ranking_data).sort_values("Puntaje (%)", ascending=False).reset_index(drop=True)
         
@@ -361,20 +355,17 @@ def main():
             st.write("🔍 **Buscador Individual**")
             sel = st.selectbox("Selecciona para ver métricas específicas:", personal_total)
             
-            es_vespertino = not df_rop[df_rop[col_enf] == sel].empty
-            es_nocturno = sel in pct_nocturnos
-            
-            # Solo muestra las tarjetas de métricas que le corresponden a esa persona
-            if es_vespertino and es_nocturno:
-                c_p1, c_p2 = st.columns(2)
-                c_p1.metric("🌙 Desempeño Nocturno", f"{pct_nocturnos[sel]:.1f}%")
-                c_p2.metric("☀️ Desempeño Vespertino", f"{df_rop[df_rop[col_enf] == sel]['Promedio'].mean():.1f}%")
-            elif es_nocturno:
-                st.metric("🌙 Desempeño Nocturno (Rondines)", f"{pct_nocturnos[sel]:.1f}%")
-            elif es_vespertino:
-                st.metric("☀️ Desempeño Vespertino (5S / Camas)", f"{df_rop[df_rop[col_enf] == sel]['Promedio'].mean():.1f}%")
+            if sel in ENFERMERAS_NOCHE:
+                st.metric("🌙 Desempeño Nocturno (Evaluación Personal - Rondines)", f"{pct_nocturnos.get(sel, 0):.1f}%")
+                st.info("El KPI nocturno se calcula en base a la ejecución de rondines de seguridad estipulados para su rol.")
             else:
-                st.info("Sin registros operativos en este periodo.")
+                df_sel = df_rop[df_rop[col_enf] == sel]
+                if not df_sel.empty:
+                    st.metric("☀️ Desempeño Vespertino (Evaluación Física - Roperos/Camas)", f"{df_sel['Promedio'].mean():.1f}%")
+                    st.info("El KPI vespertino evalúa las condiciones de la zona física (Camas/Roperos) a la que fue asignado en el turno.")
+                    st.dataframe(df_sel[['Fecha', c_5s, c_cam, 'Promedio']], use_container_width=True)
+                else:
+                    st.warning("Sin registros operativos en este periodo.")
 
     with tabs[3]:
         st.write("### Checklist de Blindaje Institucional")
@@ -389,7 +380,6 @@ def main():
         if 'checks_normas' not in st.session_state:
             st.session_state.checks_normas = {item: False for cat in categorias.values() for item in cat}
 
-        # Visualización clara y expuesta de checkboxes
         c_leg1, c_leg2 = st.columns(2)
         idx = 0
         for cat, items in categorias.items():
@@ -405,7 +395,6 @@ def main():
         st.write(f"#### Integridad Institucional actual: {int(porcentaje_legal)}%")
         st.progress(porcentaje_legal / 100)
         
-        # Botón para descargar el PDF de Legal
         pdf_bytes = generar_pdf_legal_bytes(st.session_state.checks_normas, porcentaje_legal)
         st.download_button(
             label="📄 Descargar Reporte Legal en PDF",
