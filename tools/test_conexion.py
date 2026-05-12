@@ -1,11 +1,15 @@
 import streamlit as st
 import gspread
 import pandas as pd
+import json
 
 st.title("Diagnostico de Encabezados - Servicios")
 
 try:
-    gc = gspread.service_account(filename='sunhaven-credentials.json')
+    # --- LA MAGIA PARA LA NUBE ---
+    # En lugar de buscar un archivo físico, lee el texto del Secret de Streamlit
+    credenciales_dict = json.loads(st.secrets["GOOGLE_JSON"])
+    gc = gspread.service_account_from_dict(credenciales_dict)
     
     # URL de Servicios
     url_servicios = "https://docs.google.com/spreadsheets/d/1wdP3mbW_k4a90ubPG-ZQy8FvfAZiwKnhPjCj1BZHcBs/edit?usp=sharing"
@@ -19,4 +23,4 @@ try:
     st.write(df.columns.tolist())
     
 except Exception as e:
-    st.error(f"Error: {e}")
+    st.error(f"Error de conexión: {e}")
