@@ -60,8 +60,13 @@ ENFERMERAS_ROL_B = ["Silvia Rodríguez Reynaga", "Guadalupe Georgia Lopez Ceja"]
 ENFERMERAS_NOCHE = ENFERMERAS_ROL_A + ENFERMERAS_ROL_B
 
 # ==========================================
-# 1. MOTOR PDF LEGAL (DISEÑO NORMA POR NORMA)
+# 1. MOTOR PDF LEGAL BLLINDADO
 # ==========================================
+def sanitizar_texto(texto):
+    """Limpia caracteres especiales que rompen FPDF"""
+    txt = str(texto).replace('•', '-').replace('“', '"').replace('”', '"').replace('–', '-')
+    return txt.encode('latin-1', 'replace').decode('latin-1')
+
 class LegalPDF(FPDF):
     def header(self):
         if self.page_no() == 1: return
@@ -72,7 +77,7 @@ class LegalPDF(FPDF):
         self.set_y(9)
         self.set_font('Helvetica', 'B', 16)
         self.set_text_color(255, 255, 255)
-        self.cell(0, 8, 'REPORTE EJECUTIVO - BLINDAJE NORMATIVO', 0, 1, 'C')
+        self.cell(0, 8, sanitizar_texto('REPORTE EJECUTIVO - BLINDAJE NORMATIVO'), 0, 1, 'C')
         self.ln(12)
 
     def footer(self):
@@ -83,9 +88,9 @@ class LegalPDF(FPDF):
         self.set_draw_color(*C_SUN)
         self.line(10, 282, 200, 282)
         self.set_x(10)
-        self.cell(190, 10, f'Página {self.page_no()}', 0, 0, 'C')
+        self.cell(190, 10, sanitizar_texto(f'Página {self.page_no()}'), 0, 0, 'C')
         self.set_x(10)
-        self.cell(190, 10, 'Ing. Larry Beresford', 0, 0, 'R')
+        self.cell(190, 10, sanitizar_texto('Ing. Larry Beresford'), 0, 0, 'R')
 
     def cover_page(self, fecha_str):
         self.add_page()
@@ -96,27 +101,27 @@ class LegalPDF(FPDF):
         self.set_y(40)
         self.set_font('Helvetica', 'B', 28)
         self.set_text_color(255, 255, 255)
-        self.cell(0, 10, 'SUNHAVEN', 0, 1, 'C')
+        self.cell(0, 10, sanitizar_texto('SUNHAVEN'), 0, 1, 'C')
         self.set_font('Helvetica', '', 12)
         self.set_text_color(220, 220, 220)
-        self.cell(0, 8, 'CASA DE DESCANSO PARA ADULTOS MAYORES', 0, 1, 'C')
+        self.cell(0, 8, sanitizar_texto('CASA DE DESCANSO PARA ADULTOS MAYORES'), 0, 1, 'C')
         self.set_y(140)
         self.set_font('Helvetica', 'B', 22)
         self.set_text_color(*C_DARK)
-        self.cell(0, 10, 'REPORTE EJECUTIVO', 0, 1, 'C')
+        self.cell(0, 10, sanitizar_texto('REPORTE EJECUTIVO'), 0, 1, 'C')
         self.set_font('Helvetica', 'B', 26)
         self.set_text_color(*C_SUN)
-        self.cell(0, 12, 'CUMPLIMIENTO LEGAL Y NORMATIVO', 0, 1, 'C')
+        self.cell(0, 12, sanitizar_texto('CUMPLIMIENTO LEGAL Y NORMATIVO'), 0, 1, 'C')
         self.set_y(220)
         self.set_font('Helvetica', 'B', 12)
         self.set_text_color(*C_NAVY)
-        self.cell(0, 8, f'FECHA DE EMISIÓN: {fecha_str}', 0, 1, 'C')
+        self.cell(0, 8, sanitizar_texto(f'FECHA DE EMISIÓN: {fecha_str}'), 0, 1, 'C')
         self.set_y(260)
         self.set_font('Helvetica', '', 11)
         self.set_text_color(*C_DARK)
-        self.cell(0, 6, 'Elaborado por:', 0, 1, 'C')
+        self.cell(0, 6, sanitizar_texto('Elaborado por:'), 0, 1, 'C')
         self.set_font('Helvetica', 'B', 11)
-        self.cell(0, 6, 'Ing. Larry Beresford', 0, 1, 'C')
+        self.cell(0, 6, sanitizar_texto('Ing. Larry Beresford'), 0, 1, 'C')
 
 def generar_pdf_legal_bytes(categorias_dict, checks_dict, porcentaje):
     pdf = LegalPDF()
@@ -126,30 +131,29 @@ def generar_pdf_legal_bytes(categorias_dict, checks_dict, porcentaje):
     pdf.add_page()
     pdf.set_font('Helvetica', 'B', 14)
     pdf.set_text_color(*C_NAVY)
-    pdf.cell(0, 8, "ESTATUS GLOBAL DE BLINDAJE INSTITUCIONAL", 0, 1, 'L')
+    pdf.cell(0, 8, sanitizar_texto("ESTATUS GLOBAL DE BLINDAJE INSTITUCIONAL"), 0, 1, 'L')
     pdf.set_draw_color(*C_SUN)
     pdf.line(10, pdf.get_y(), 200, pdf.get_y())
     pdf.ln(5)
     
     pdf.set_font('Helvetica', '', 11)
     pdf.set_text_color(*C_DARK)
-    pdf.cell(0, 8, f"Nivel de cumplimiento general de la institución: {porcentaje:.1f}%", 0, 1)
+    pdf.cell(0, 8, sanitizar_texto(f"Nivel de cumplimiento general de la institución: {porcentaje:.1f}%"), 0, 1)
     pdf.ln(5)
     
     # --- ENCABEZADO DE TABLA ---
     pdf.set_fill_color(*C_NAVY)
     pdf.set_text_color(255, 255, 255)
     pdf.set_font('Helvetica', 'B', 9)
-    pdf.cell(150, 8, "REQUISITO NORMATIVO", 1, 0, 'C', True)
-    pdf.cell(40, 8, "ESTATUS", 1, 1, 'C', True)
+    pdf.cell(150, 8, sanitizar_texto("REQUISITO NORMATIVO"), 1, 0, 'C', True)
+    pdf.cell(40, 8, sanitizar_texto("ESTATUS"), 1, 1, 'C', True)
     
-    # --- LLENADO DINÁMICO POR CATEGORÍA (Norma por Norma) ---
+    # --- LLENADO DINÁMICO POR CATEGORÍA ---
     for cat, items in categorias_dict.items():
-        # Fila de Categoría (Agrupador)
-        pdf.set_fill_color(220, 230, 240) # Azul muy clarito
+        pdf.set_fill_color(220, 230, 240) 
         pdf.set_text_color(*C_NAVY)
         pdf.set_font('Helvetica', 'B', 8)
-        pdf.cell(190, 7, f" {cat.upper()}", 1, 1, 'L', True)
+        pdf.cell(190, 7, sanitizar_texto(f" {cat.upper()}"), 1, 1, 'L', True)
         
         fill_row = False
         for req in items:
@@ -157,12 +161,13 @@ def generar_pdf_legal_bytes(categorias_dict, checks_dict, porcentaje):
             pdf.set_fill_color(*C_LIGHT) if fill_row else pdf.set_fill_color(255, 255, 255)
             pdf.set_text_color(*C_DARK)
             
-            # Truncar si es muy largo
-            req_texto = f"   • {req}"
+            # Truncar y sanitizar texto
+            req_texto = f"   - {req}" # Cambié la viñeta por guion para evitar errores FPDF
             if len(req_texto) > 90: req_texto = req_texto[:87] + "..."
+            req_texto_limpio = sanitizar_texto(req_texto)
             
             pdf.set_font('Helvetica', '', 8)
-            pdf.cell(150, 7, req_texto, 1, 0, 'L', fill_row)
+            pdf.cell(150, 7, req_texto_limpio, 1, 0, 'L', fill_row)
             
             if estado:
                 pdf.set_text_color(39, 174, 96)
@@ -172,11 +177,11 @@ def generar_pdf_legal_bytes(categorias_dict, checks_dict, porcentaje):
                 txt_estado = "PENDIENTE"
                 
             pdf.set_font('Helvetica', 'B', 8)
-            pdf.cell(40, 7, txt_estado, 1, 1, 'C', fill_row)
+            pdf.cell(40, 7, sanitizar_texto(txt_estado), 1, 1, 'C', fill_row)
             
             fill_row = not fill_row
 
-    return pdf.output(dest='S').encode('latin-1')
+    return pdf.output(dest='S').encode('latin-1', 'replace')
 
 # ==========================================
 # 2. MOTOR DE DATOS
@@ -379,7 +384,6 @@ def main():
         st.write("### Auditoría y Blindaje Institucional")
         st.write("Desglose normativo aplicable para cumplimiento ante autoridades. (Basado en el documento de normatividad interna).")
         
-        # --- MATRIZ LEGAL DESGLOSADA NORMA POR NORMA ---
         categorias = {
             "COPRISJAL (Regulación Sanitaria)": [
                 "Aviso de Funcionamiento y Responsable Sanitario exhibido",
@@ -416,7 +420,6 @@ def main():
             ]
         }
         
-        # Validación Inteligente de Caché para evitar KeyError
         if 'checks_normas' not in st.session_state:
             st.session_state.checks_normas = {}
             
@@ -425,14 +428,11 @@ def main():
                 if item not in st.session_state.checks_normas:
                     st.session_state.checks_normas[item] = False
 
-        # Dibujar UI
         for cat, items in categorias.items():
             with st.expander(cat, expanded=True):
                 for item in items:
-                    # El checkbox se amarra directo a la llave de session_state
                     st.session_state.checks_normas[item] = st.checkbox(item, value=st.session_state.checks_normas[item], key=item)
             
-        # Calcular progreso con los items actuales de las categorias
         total_items_actuales = sum(len(items) for items in categorias.values())
         items_cumplidos = sum(1 for cat in categorias.values() for item in cat if st.session_state.checks_normas.get(item, False))
         
