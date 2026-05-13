@@ -141,14 +141,12 @@ def generar_pdf_legal_bytes(categorias_dict, checks_dict, porcentaje):
     pdf.cell(0, 8, sanitizar_texto(f"Nivel de cumplimiento general de la institución: {porcentaje:.1f}%"), 0, 1)
     pdf.ln(5)
     
-    # --- ENCABEZADO DE TABLA ---
     pdf.set_fill_color(*C_NAVY)
     pdf.set_text_color(255, 255, 255)
     pdf.set_font('Helvetica', 'B', 9)
     pdf.cell(150, 8, sanitizar_texto("REQUISITO NORMATIVO"), 1, 0, 'C', True)
     pdf.cell(40, 8, sanitizar_texto("ESTATUS"), 1, 1, 'C', True)
     
-    # --- LLENADO DINÁMICO POR CATEGORÍA ---
     for cat, items in categorias_dict.items():
         pdf.set_fill_color(220, 230, 240) 
         pdf.set_text_color(*C_NAVY)
@@ -177,7 +175,6 @@ def generar_pdf_legal_bytes(categorias_dict, checks_dict, porcentaje):
                 
             pdf.set_font('Helvetica', 'B', 8)
             pdf.cell(40, 7, sanitizar_texto(txt_estado), 1, 1, 'C', fill_row)
-            
             fill_row = not fill_row
 
     return pdf.output(dest='S').encode('latin-1', 'replace')
@@ -248,7 +245,15 @@ def main():
 
         c_5s = [c for c in df_rop.columns if "Orden" in c][0]
         c_cam = [c for c in df_rop.columns if "Tendido" in c][0]
-        col_enf = [c for c in df_rop.columns if "enfermera" in c.lower()][0]
+        
+        # --- LÓGICA INTELIGENTE DE COLUMNAS (ASIGNACIÓN REAL DE ROPEROS) ---
+        # Busca primero si ya creaste la columna "Colaborador asignado..."
+        col_enf_candidates = [c for c in df_rop.columns if "asignado" in c.lower() or "evaluad" in c.lower()]
+        if col_enf_candidates:
+            col_enf = col_enf_candidates[0]
+        else:
+            col_enf = [c for c in df_rop.columns if "enfermera" in c.lower() or "nombre" in c.lower()][0]
+
         c_uni = [c for c in df_serv.columns if "uniforme" in c.lower()][0]
         c_bas = [c for c in df_serv.columns if "basura" in c.lower()][0]
         c_lav_r = [c for c in df_serv.columns if "ropa" in c.lower() or "separad" in c.lower()][0]
@@ -333,12 +338,60 @@ def main():
             st.plotly_chart(fig_c, use_container_width=True)
 
     with tabs[1]:
-        st.write("### Evolución Histórica de KPIs por Área")
+        st.write("### Evolución Histórica de Todos los Departamentos")
+        
+        # --- SELECTOR DE GRANULARIDAD ---
+        agrupacion = st.radio("Seleccionar Agrupación Temporal:", ["Día", "Semana", "Mes", "Año"], horizontal=True)
+        
+        # --- PREPARACIÓN DE SERIES DIARIAS ---
+        rango_fechas = pd.date_range(fecha_inicio, fecha_fin)
+        
+        # Nocturno (Cálculo Diario)
+        df_ron_valido = df_ron[df_ron['Bloque'].notnull()].drop_duplicates(subset=['Fecha', 'Enfermera', 'Bloque'])
+        conteo_diario_noc = df_ron_valido.groupby('Fecha').size()
+        
+        noc_diario = []
+        for d in rango_fechas:
+            d_date = d.date()
+            if d.weekday() in [0, 2, 4]: exp = len(ENFERMERAS_ROL_A) * 3
+            elif d.weekday() in [1, 3, 5]: exp = len(ENFERMERAS_ROL_B) * 3
+            else: exp = 0
+            
+            if exp > 0: noc_diario.append(min((conteo_diario_noc.get(d_date, 0) / exp) * 100, 100))
+            else: noc_diario.append(None)
+            
+        # Otras áreas (Cálculo Diario)
         df_time_v = df_rop.groupby('Fecha')['Promedio'].mean()
-        df_time_s = df_serv.groupby('Fecha')[[c_uni, c_bas, c_lav_r, c_lav_j, c_lim]].mean().mean(axis=1)
-        df_evol = pd.DataFrame({"Vespertino": df_time_v, "Servicios": df_time_s}).ffill().fillna(0)
-        fig_evol = px.line(df_evol, labels={"value": "Cumplimiento (%)", "Fecha": "Día"}, color_discrete_sequence=[HEX_NAVY, HEX_GREEN])
-        fig_evol.add_hline(y=90, line_dash="dot", line_color="red")
+        df_time_coc = df_serv.groupby('Fecha')[[c_uni, c_bas]].mean().mean(axis=1)
+        df_time_lav = df_serv.groupby('Fecha')[[c_lav_r, c_lav_j]].mean().mean(axis=1)
+        df_time_lim = df_serv.groupby('Fecha')[c_lim].mean()
+
+        df_evol = pd.DataFrame(index=rango_fechas.date)
+        df_evol['Nocturno'] = noc_diario
+        df_evol['Vespertino'] = df_evol.index.map(df_time_v)
+        df_evol['Cocina'] = df_evol.index.map(df_time_coc)
+        df_evol['Lavandería'] = df_evol.index.map(df_time_lav)
+        df_evol['Limpieza'] = df_evol.index.map(df_time_lim)
+
+        df_evol = df_evol.ffill().bfill().fillna(0)
+        df_evol.index = pd.to_datetime(df_evol.index)
+        
+        # --- APLICAR AGRUPACIÓN ---
+        if agrupacion == "Semana":
+            df_plot = df_evol.resample('W-MON').mean()
+            df_plot.index = df_plot.index.strftime('Semana %W - %Y')
+        elif agrupacion == "Mes":
+            df_plot = df_evol.resample('M').mean()
+            df_plot.index = df_plot.index.strftime('%Y-%m')
+        elif agrupacion == "Año":
+            df_plot = df_evol.resample('Y').mean()
+            df_plot.index = df_plot.index.strftime('%Y')
+        else:
+            df_plot = df_evol
+            df_plot.index = df_plot.index.strftime('%Y-%m-%d')
+
+        fig_evol = px.line(df_plot, labels={"value": "Cumplimiento (%)", "index": "Periodo", "variable": "Área Operativa"}, markers=True)
+        fig_evol.add_hline(y=90, line_dash="dot", line_color="red", annotation_text="Línea Base 90%")
         st.plotly_chart(fig_evol, use_container_width=True)
 
     with tabs[2]:
@@ -451,16 +504,22 @@ def main():
 
     with tabs[4]:
         st.write("### Auditoría de Tuberías de Datos (Data Cruda)")
-        st.info("Verifica los registros extraídos de Google Sheets tras aplicar los filtros de fecha y la conversión de texto a métricas.")
+        st.info("Verifica los registros extraídos de Google Sheets tras aplicar los filtros de fecha. Usa las pestañas internas para navegar.")
         
-        st.write("#### 1. Servicios Generales (Cocina, Lavandería, Limpieza)")
-        st.dataframe(df_serv, use_container_width=True)
+        # --- SUB-PESTAÑAS PARA MEJORAR LA VISUALIZACIÓN ---
+        sub_t1, sub_t2, sub_t3 = st.tabs(["🧹 Servicios Generales", "☀️ Enfermería Vespertina", "🌙 Rondines Nocturnos"])
         
-        st.write("#### 2. Enfermería Vespertina (5S Roperos y Camas)")
-        st.dataframe(df_rop, use_container_width=True)
-        
-        st.write("#### 3. Rondines Nocturnos (Escaneos QR de Seguridad)")
-        st.dataframe(df_ron, use_container_width=True)
+        with sub_t1:
+            st.write("**Data de: Cocina, Lavandería y Limpieza General**")
+            st.dataframe(df_serv, use_container_width=True)
+            
+        with sub_t2:
+            st.write("**Data de: Evaluaciones de 5S en Roperos y Tendido de Camas**")
+            st.dataframe(df_rop, use_container_width=True)
+            
+        with sub_t3:
+            st.write("**Data de: Bitácora Transaccional de Escaneos QR**")
+            st.dataframe(df_ron, use_container_width=True)
 
     st.markdown("<div class='footer-watermark'>Sunhaven Intelligence Suite - Enterprise Edition</div>", unsafe_allow_html=True)
 
