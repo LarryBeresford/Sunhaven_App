@@ -4,10 +4,18 @@ import gspread
 import json
 import os
 import sys
+import subprocess
 from datetime import datetime, timedelta
 import plotly.graph_objects as go
 import plotly.express as px
 from fpdf import FPDF
+
+# --- LIBRERÍAS PARA GENERAR IMÁGENES EN EL PDF ---
+import matplotlib
+matplotlib.use('Agg') # Fundamental para que no crashee en la nube
+import matplotlib.pyplot as plt
+import shutil
+import uuid
 
 # ==========================================
 # 0. CONFIGURACION Y SEGURIDAD
@@ -65,6 +73,30 @@ def sanitizar_texto(texto):
     txt = str(texto).replace('•', '-').replace('“', '"').replace('”', '"').replace('–', '-')
     return txt.encode('latin-1', 'replace').decode('latin-1')
 
+def tabla_centrada(pdf, headers, data, col_widths):
+    total_width = sum(col_widths)
+    start_x = (210 - total_width) / 2
+    
+    pdf.set_x(start_x)
+    pdf.set_fill_color(*C_NAVY)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font('Helvetica', 'B', 9)
+    for i, h in enumerate(headers):
+        pdf.cell(col_widths[i], 8, sanitizar_texto(h), 1, 0, 'C', True)
+    pdf.ln()
+    
+    pdf.set_font('Helvetica', '', 9)
+    fill = False
+    for row in data:
+        pdf.set_x(start_x)
+        pdf.set_fill_color(*C_LIGHT) if fill else pdf.set_fill_color(255, 255, 255)
+        pdf.set_text_color(*C_DARK)
+        for i, val in enumerate(row):
+            align = 'C' if i > 0 else 'L'
+            pdf.cell(col_widths[i], 7, sanitizar_texto(str(val)), 1, 0, align, fill)
+        pdf.ln()
+        fill = not fill
+
 class SunhavenPDF(FPDF):
     def header(self):
         if self.page_no() == 1: return
@@ -75,7 +107,7 @@ class SunhavenPDF(FPDF):
         self.set_y(9)
         self.set_font('Helvetica', 'B', 16)
         self.set_text_color(255, 255, 255)
-        self.cell(0, 8, sanitizar_texto(self.titulo_header), 0, 1, 'C')
+        self.cell(0, 8, sanitizar_texto(getattr(self, 'titulo_header', 'REPORTE EJECUTIVO')), 0, 1, 'C')
         self.ln(12)
 
     def footer(self):
@@ -124,13 +156,53 @@ class SunhavenPDF(FPDF):
         self.set_font('Helvetica', 'B', 11)
         self.cell(0, 6, sanitizar_texto('Ing. Larry Beresford'), 0, 1, 'C')
 
-# --- GENERADOR DE PDF: DASHBOARD OPERATIVO ---
-def generar_pdf_dashboard(ico, estatus, areas_kpi, df_criterios, df_ranking, fechas_str):
+# --- GENERADOR DE PDF: DASHBOARD OPERATIVO (CON GRÁFICOS Y CONCLUSIONES) ---
+def generar_graficos_temporales(df_a, df_c, df_evol, df_ranking):
+    temp_dir = os.path.join(os.path.dirname(__file__), f'temp_images_{uuid.uuid4().hex}')
+    os.makedirs(temp_dir, exist_ok=True)
+    paths = {}
+    
+    plt.figure(figsize=(8, 4))
+    plt.bar(df_a['index'], df_a['V'], color=HEX_NAVY)
+    plt.axhline(90, color='red', linestyle='--')
+    plt.title('Pareto de Cumplimiento por Área Operativa', fontsize=12, fontweight='bold')
+    plt.tight_layout()
+    paths['pareto'] = os.path.join(temp_dir, 'pareto.png')
+    plt.savefig(paths['pareto'])
+    plt.close()
+    
+    plt.figure(figsize=(8, 5))
+    df_c_sorted = df_c.sort_values('V', ascending=True)
+    plt.barh(df_c_sorted['index'], df_c_sorted['V'], color=HEX_RED)
+    plt.axvline(90, color='black', linestyle='--')
+    plt.title('Análisis de Causa Raíz (Criterios Específicos)', fontsize=12, fontweight='bold')
+    plt.tight_layout()
+    paths['causa'] = os.path.join(temp_dir, 'causa.png')
+    plt.savefig(paths['causa'])
+    plt.close()
+    
+    plt.figure(figsize=(10, 4))
+    for col in df_evol.columns:
+        plt.plot(df_evol.index, df_evol[col], marker='o', label=col)
+    plt.axhline(90, color='red', linestyle='--')
+    plt.title('Evolución Histórica de Departamentos', fontsize=12, fontweight='bold')
+    plt.legend(loc='lower center', bbox_to_anchor=(0.5, -0.3), ncol=5)
+    plt.tight_layout()
+    paths['evol'] = os.path.join(temp_dir, 'evol.png')
+    plt.savefig(paths['evol'])
+    plt.close()
+    
+    return paths, temp_dir
+
+def generar_pdf_dashboard(ico, estatus, areas_kpi, df_c, df_ranking, fechas_str, df_evol):
+    rutas_img, temp_dir = generar_graficos_temporales(pd.DataFrame(list(areas_kpi.items()), columns=['index', 'V']), df_c, df_evol, df_ranking)
+    
     pdf = SunhavenPDF()
     pdf.titulo_header = "REPORTE EJECUTIVO - OPERACIONES"
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.cover_page("INDICADORES OPERATIVOS (KPI)", "Estado de las Infraestructuras y Servicios", fechas_str)
     
+    # SECCIÓN 1: GLOBAL
     pdf.add_page()
     pdf.set_font('Helvetica', 'B', 14)
     pdf.set_text_color(*C_NAVY)
@@ -145,79 +217,78 @@ def generar_pdf_dashboard(ico, estatus, areas_kpi, df_criterios, df_ranking, fec
     pdf.cell(0, 8, sanitizar_texto(f"Dictamen del Sistema: {estatus}"), 0, 1)
     pdf.ln(10)
     
-    # Tabla Áreas
+    # SECCIÓN 2: ÁREAS
     pdf.set_font('Helvetica', 'B', 12)
     pdf.set_text_color(*C_NAVY)
-    pdf.cell(0, 8, sanitizar_texto("2. DESEMPEÑO POR DEPARTAMENTO"), 0, 1, 'L')
+    pdf.cell(0, 8, sanitizar_texto("2. DESEMPEÑO POR DEPARTAMENTO (PARETO)"), 0, 1, 'L')
     pdf.ln(3)
-    pdf.set_fill_color(*C_NAVY)
-    pdf.set_text_color(255, 255, 255)
-    pdf.set_font('Helvetica', 'B', 10)
-    pdf.cell(100, 8, sanitizar_texto("Área Operativa"), 1, 0, 'C', True)
-    pdf.cell(50, 8, sanitizar_texto("Cumplimiento"), 1, 1, 'C', True)
     
-    pdf.set_font('Helvetica', '', 10)
-    fill = False
-    for area, val in areas_kpi.items():
-        pdf.set_fill_color(*C_LIGHT) if fill else pdf.set_fill_color(255, 255, 255)
-        pdf.set_text_color(*C_DARK)
-        pdf.cell(100, 8, sanitizar_texto(f" {area}"), 1, 0, 'L', fill)
-        if val >= 90: pdf.set_text_color(39, 174, 96)
-        else: pdf.set_text_color(231, 76, 60)
-        pdf.cell(50, 8, sanitizar_texto(f"{val:.1f}%"), 1, 1, 'C', fill)
-        fill = not fill
-        
+    datos_areas = [[k, f"{v:.1f}%"] for k, v in sorted(areas_kpi.items(), key=lambda x: x[1], reverse=True)]
+    tabla_centrada(pdf, ["Área Operativa", "Cumplimiento"], datos_areas, [80, 40])
+    
+    pdf.ln(5)
+    pdf.image(rutas_img['pareto'], x=30, w=150)
+    
+    peor_area = datos_areas[-1][0]
+    pdf.set_font('Helvetica', 'I', 10)
+    pdf.set_text_color(*C_SUN)
+    pdf.multi_cell(0, 6, sanitizar_texto(f"Conclusión Estratégica: El área con mayor área de oportunidad en este periodo es '{peor_area}'. Se recomienda enfocar los recursos de supervisión inmediatos en este departamento para estabilizar el ICO Maestro."))
     pdf.ln(10)
     
-    # Tabla Causa Raíz
-    pdf.set_font('Helvetica', 'B', 12)
-    pdf.set_text_color(*C_NAVY)
-    pdf.cell(0, 8, sanitizar_texto("3. ANÁLISIS DE CAUSA RAÍZ (CRITERIOS CRÍTICOS)"), 0, 1, 'L')
-    pdf.ln(3)
-    pdf.set_fill_color(*C_NAVY)
-    pdf.set_text_color(255, 255, 255)
-    pdf.set_font('Helvetica', 'B', 10)
-    pdf.cell(100, 8, sanitizar_texto("Criterio Evaluado"), 1, 0, 'C', True)
-    pdf.cell(50, 8, sanitizar_texto("Desempeño"), 1, 1, 'C', True)
-    
-    pdf.set_font('Helvetica', '', 10)
-    fill = False
-    for index, row in df_criterios.head(5).iterrows(): # Solo los 5 peores
-        pdf.set_fill_color(*C_LIGHT) if fill else pdf.set_fill_color(255, 255, 255)
-        pdf.set_text_color(*C_DARK)
-        pdf.cell(100, 8, sanitizar_texto(f" {row['index']}"), 1, 0, 'L', fill)
-        if row['V'] >= 90: pdf.set_text_color(39, 174, 96)
-        else: pdf.set_text_color(231, 76, 60)
-        pdf.cell(50, 8, sanitizar_texto(f"{row['V']:.1f}%"), 1, 1, 'C', fill)
-        fill = not fill
-        
+    # SECCIÓN 3: CAUSA RAÍZ
     pdf.add_page()
     pdf.set_font('Helvetica', 'B', 12)
     pdf.set_text_color(*C_NAVY)
-    pdf.cell(0, 8, sanitizar_texto("4. RANKING DE DESEMPEÑO INDIVIDUAL"), 0, 1, 'L')
+    pdf.cell(0, 8, sanitizar_texto("3. ANÁLISIS DE CAUSA RAÍZ (TODOS LOS CRITERIOS)"), 0, 1, 'L')
+    pdf.set_draw_color(*C_SUN)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(3)
+    
+    datos_cr = [[row['index'], f"{row['V']:.1f}%"] for _, row in df_c.sort_values('V', ascending=True).iterrows()]
+    tabla_centrada(pdf, ["Criterio Evaluado", "Desempeño"], datos_cr, [100, 40])
+    
+    pdf.ln(5)
+    pdf.image(rutas_img['causa'], x=30, w=150)
+    
+    peor_criterio = datos_cr[0][0]
+    pdf.set_font('Helvetica', 'I', 10)
+    pdf.set_text_color(*C_SUN)
+    pdf.multi_cell(0, 6, sanitizar_texto(f"Dictamen de Causa Raíz: El factor crítico que está arrastrando la métrica global hacia abajo es '{peor_criterio}'. La acción correctiva debe aplicarse directamente sobre este proceso."))
+    
+    # SECCIÓN 4: LÍNEA DEL TIEMPO
+    pdf.add_page()
+    pdf.set_font('Helvetica', 'B', 12)
+    pdf.set_text_color(*C_NAVY)
+    pdf.cell(0, 8, sanitizar_texto("4. EVOLUCIÓN HISTÓRICA (LÍNEA DE TIEMPO)"), 0, 1, 'L')
     pdf.set_draw_color(*C_SUN)
     pdf.line(10, pdf.get_y(), 200, pdf.get_y())
     pdf.ln(5)
     
-    pdf.set_fill_color(*C_NAVY)
-    pdf.set_text_color(255, 255, 255)
-    pdf.set_font('Helvetica', 'B', 9)
-    pdf.cell(90, 8, sanitizar_texto("Colaborador"), 1, 0, 'C', True)
-    pdf.cell(60, 8, sanitizar_texto("Tipo de Evaluación"), 1, 0, 'C', True)
-    pdf.cell(30, 8, sanitizar_texto("Puntaje"), 1, 1, 'C', True)
-    
-    pdf.set_font('Helvetica', '', 9)
-    fill = False
-    for index, row in df_ranking.iterrows():
-        pdf.set_fill_color(*C_LIGHT) if fill else pdf.set_fill_color(255, 255, 255)
-        pdf.set_text_color(*C_DARK)
-        pdf.cell(90, 8, sanitizar_texto(f" {row['Colaborador']}"), 1, 0, 'L', fill)
-        pdf.cell(60, 8, sanitizar_texto(f" {row['Turno']}"), 1, 0, 'C', fill)
-        if row['Puntaje (%)'] >= 90: pdf.set_text_color(39, 174, 96)
-        else: pdf.set_text_color(231, 76, 60)
-        pdf.cell(30, 8, sanitizar_texto(f"{row['Puntaje (%)']:.1f}%"), 1, 1, 'C', fill)
-        fill = not fill
+    pdf.image(rutas_img['evol'], x=15, w=180)
+    pdf.ln(5)
+    pdf.set_font('Helvetica', 'I', 10)
+    pdf.set_text_color(*C_SUN)
+    pdf.multi_cell(0, 6, sanitizar_texto("Análisis de Tendencia: La gráfica superior demuestra la fluctuación diaria/semanal de la operación. Las caídas por debajo de la línea roja (90%) representan días de alto riesgo operativo."))
 
+    # SECCIÓN 5: RENDIMIENTO INDIVIDUAL
+    pdf.add_page()
+    pdf.set_font('Helvetica', 'B', 12)
+    pdf.set_text_color(*C_NAVY)
+    pdf.cell(0, 8, sanitizar_texto("5. RANKING DE DESEMPEÑO INDIVIDUAL"), 0, 1, 'L')
+    pdf.set_draw_color(*C_SUN)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(5)
+    
+    datos_ranking = [[row['Colaborador'], row['Turno'], f"{row['Puntaje (%)']:.1f}%"] for _, row in df_ranking.iterrows()]
+    tabla_centrada(pdf, ["Colaborador", "Tipo de Evaluación", "Puntaje"], datos_ranking, [80, 60, 30])
+    
+    pdf.ln(10)
+    pdf.set_font('Helvetica', 'I', 10)
+    pdf.set_text_color(*C_SUN)
+    pdf.multi_cell(0, 6, sanitizar_texto("Conclusión de Recursos Humanos: Este ranking unificado permite identificar al personal sobresaliente (apto para programas de bonos) y al personal que requiere capacitación inmediata para elevar sus estándares de ejecución."))
+
+    # Limpieza de imágenes temporales
+    shutil.rmtree(temp_dir, ignore_errors=True)
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
 # --- GENERADOR DE PDF: LEGAL ---
@@ -260,10 +331,9 @@ def generar_pdf_legal_bytes(categorias_dict, checks_dict, porcentaje):
             
             req_texto = f"   - {req}"
             if len(req_texto) > 90: req_texto = req_texto[:87] + "..."
-            req_texto_limpio = sanitizar_texto(req_texto)
             
             pdf.set_font('Helvetica', '', 8)
-            pdf.cell(150, 7, req_texto_limpio, 1, 0, 'L', fill_row)
+            pdf.cell(150, 7, sanitizar_texto(req_texto), 1, 0, 'L', fill_row)
             
             if estado:
                 pdf.set_text_color(39, 174, 96)
@@ -391,11 +461,9 @@ def main():
         areas_kpi = {k: (v if pd.notna(v) else 0) for k, v in areas_kpi.items()}
         ico_master = sum(areas_kpi.values()) / len(areas_kpi)
 
-        # Causa Raíz
         crit = {"Uniforme": df_serv[c_uni].mean(), "Basura": df_serv[c_bas].mean(), "Ropa": df_serv[c_lav_r].mean(), "Jabón": df_serv[c_lav_j].mean(), "Zonas": df_serv[c_lim].mean(), "5S Roperos": df_rop[c_5s].mean(), "Tendido Camas": df_rop[c_cam].mean(), "Rondines Noct.": val_nocturno}
         df_c = pd.DataFrame.from_dict(crit, orient='index', columns=['V']).sort_values('V', ascending=True).reset_index()
 
-        # Ranking Personal
         personal_diurno = set(df_rop[col_enf].dropna().unique()) - set(ENFERMERAS_NOCHE)
         personal_total = sorted(list(personal_diurno.union(set(ENFERMERAS_NOCHE))))
         ranking_data = []
@@ -409,6 +477,34 @@ def main():
                 if pd.notna(v_score):
                     ranking_data.append({"Colaborador": emp, "Turno": "Vespertino", "Puntaje (%)": round(v_score, 1)})
         df_ranking = pd.DataFrame(ranking_data).sort_values("Puntaje (%)", ascending=False).reset_index(drop=True)
+        
+        # PREPARAR DATA EVOLUCION
+        rango_fechas = pd.date_range(fecha_inicio, fecha_fin)
+        df_ron_valido = df_ron[df_ron['Bloque'].notnull()].drop_duplicates(subset=['Fecha', 'Enfermera', 'Bloque'])
+        conteo_diario_noc = df_ron_valido.groupby('Fecha').size()
+        noc_diario = []
+        for d in rango_fechas:
+            d_date = d.date()
+            if d.weekday() in [0, 2, 4]: exp = len(ENFERMERAS_ROL_A) * 3
+            elif d.weekday() in [1, 3, 5]: exp = len(ENFERMERAS_ROL_B) * 3
+            else: exp = 0
+            if exp > 0: noc_diario.append(min((conteo_diario_noc.get(d_date, 0) / exp) * 100, 100))
+            else: noc_diario.append(None)
+            
+        df_time_v = df_rop.groupby('Fecha')['Promedio'].mean()
+        df_time_coc = df_serv.groupby('Fecha')[[c_uni, c_bas]].mean().mean(axis=1)
+        df_time_lav = df_serv.groupby('Fecha')[[c_lav_r, c_lav_j]].mean().mean(axis=1)
+        df_time_lim = df_serv.groupby('Fecha')[c_lim].mean()
+
+        df_evol_base = pd.DataFrame(index=rango_fechas.date)
+        df_evol_base['Nocturno'] = noc_diario
+        df_evol_base['Vespertino'] = df_evol_base.index.map(df_time_v)
+        df_evol_base['Cocina'] = df_evol_base.index.map(df_time_coc)
+        df_evol_base['Lavandería'] = df_evol_base.index.map(df_time_lav)
+        df_evol_base['Limpieza'] = df_evol_base.index.map(df_time_lim)
+
+        df_evol_base = df_evol_base.ffill().bfill().fillna(0)
+        df_evol_base.index = pd.to_datetime(df_evol_base.index)
 
     except Exception as e:
         st.error(f"Error: {e}")
@@ -416,6 +512,7 @@ def main():
         estatus_txt = "ERROR DE DATOS"
         df_c = pd.DataFrame()
         df_ranking = pd.DataFrame()
+        df_evol_base = pd.DataFrame()
 
     estatus_txt = "ESTABLE" if ico_master >= 90 else "ATENCION REQUERIDA"
 
@@ -430,10 +527,19 @@ def main():
     tabs = st.tabs(["Tablero de Control", "Evolución Temporal", "Rendimiento Individual", "Blindaje Legal", "Auditoría de Datos"])
 
     with tabs[0]:
-        c_btn1, c_btn2 = st.columns([0.8, 0.2])
+        st.write("### Generador de Reporte Ejecutivo")
+        c_btn1, c_btn2 = st.columns([0.2, 0.8])
+        with c_btn1:
+            if st.button("Generar Reporte PDF", use_container_width=True):
+                with st.spinner("Procesando gráficos analíticos y ensamblando PDF..."):
+                    pdf_bytes = generar_pdf_dashboard(ico_master, estatus_txt, areas_kpi, df_c, df_ranking, fechas_str, df_evol_base)
+                    st.session_state['pdf_dash'] = pdf_bytes
+                    
         with c_btn2:
-            pdf_dash_bytes = generar_pdf_dashboard(ico_master, estatus_txt, areas_kpi, df_c, df_ranking, fechas_str)
-            st.download_button(label="Descargar Reporte Operativo (PDF)", data=pdf_dash_bytes, file_name=f"Dashboard_Sunhaven_{fecha_fin.strftime('%d%m%Y')}.pdf", mime="application/pdf", use_container_width=True)
+            if 'pdf_dash' in st.session_state:
+                st.download_button(label="Descargar Reporte Operativo", data=st.session_state['pdf_dash'], file_name=f"Dashboard_Sunhaven_{fecha_fin.strftime('%d%m%Y')}.pdf", mime="application/pdf", use_container_width=False)
+
+        st.divider()
 
         cols = st.columns(5)
         for i, (area, valor) in enumerate(areas_kpi.items()):
@@ -458,46 +564,17 @@ def main():
         st.write("### Evolución Histórica de Todos los Departamentos")
         agrupacion = st.radio("Seleccionar Agrupación Temporal:", ["Día", "Semana", "Mes", "Año"], horizontal=True)
         
-        rango_fechas = pd.date_range(fecha_inicio, fecha_fin)
-        
-        df_ron_valido = df_ron[df_ron['Bloque'].notnull()].drop_duplicates(subset=['Fecha', 'Enfermera', 'Bloque'])
-        conteo_diario_noc = df_ron_valido.groupby('Fecha').size()
-        
-        noc_diario = []
-        for d in rango_fechas:
-            d_date = d.date()
-            if d.weekday() in [0, 2, 4]: exp = len(ENFERMERAS_ROL_A) * 3
-            elif d.weekday() in [1, 3, 5]: exp = len(ENFERMERAS_ROL_B) * 3
-            else: exp = 0
-            if exp > 0: noc_diario.append(min((conteo_diario_noc.get(d_date, 0) / exp) * 100, 100))
-            else: noc_diario.append(None)
-            
-        df_time_v = df_rop.groupby('Fecha')['Promedio'].mean()
-        df_time_coc = df_serv.groupby('Fecha')[[c_uni, c_bas]].mean().mean(axis=1)
-        df_time_lav = df_serv.groupby('Fecha')[[c_lav_r, c_lav_j]].mean().mean(axis=1)
-        df_time_lim = df_serv.groupby('Fecha')[c_lim].mean()
-
-        df_evol = pd.DataFrame(index=rango_fechas.date)
-        df_evol['Nocturno'] = noc_diario
-        df_evol['Vespertino'] = df_evol.index.map(df_time_v)
-        df_evol['Cocina'] = df_evol.index.map(df_time_coc)
-        df_evol['Lavandería'] = df_evol.index.map(df_time_lav)
-        df_evol['Limpieza'] = df_evol.index.map(df_time_lim)
-
-        df_evol = df_evol.ffill().bfill().fillna(0)
-        df_evol.index = pd.to_datetime(df_evol.index)
-        
         if agrupacion == "Semana":
-            df_plot = df_evol.resample('W-MON').mean()
+            df_plot = df_evol_base.resample('W-MON').mean()
             df_plot.index = df_plot.index.strftime('Semana %W - %Y')
         elif agrupacion == "Mes":
-            df_plot = df_evol.resample('ME').mean()
+            df_plot = df_evol_base.resample('ME').mean()
             df_plot.index = df_plot.index.strftime('%Y-%m')
         elif agrupacion == "Año":
-            df_plot = df_evol.resample('YE').mean()
+            df_plot = df_evol_base.resample('YE').mean()
             df_plot.index = df_plot.index.strftime('%Y')
         else:
-            df_plot = df_evol
+            df_plot = df_evol_base.copy()
             df_plot.index = df_plot.index.strftime('%Y-%m-%d')
 
         fig_evol = px.line(df_plot, labels={"value": "Cumplimiento (%)", "index": "Periodo", "variable": "Área Operativa"}, markers=True)
@@ -527,10 +604,8 @@ def main():
                     st.warning("Sin registros operativos.")
 
     with tabs[3]:
-        c_leg1, c_leg2 = st.columns([0.8, 0.2])
-        with c_leg1:
-            st.write("### Auditoría y Blindaje Institucional")
-            st.write("Desglose normativo aplicable para cumplimiento ante autoridades.")
+        st.write("### Auditoría y Blindaje Institucional")
+        st.write("Desglose normativo aplicable para cumplimiento ante autoridades.")
         
         categorias = {
             "COPRISJAL (Regulación Sanitaria)": [
@@ -576,22 +651,27 @@ def main():
                 if item not in st.session_state.checks_normas:
                     st.session_state.checks_normas[item] = False
 
-        for cat, items in categorias.items():
-            with st.expander(cat, expanded=True):
-                for item in items:
-                    st.session_state.checks_normas[item] = st.checkbox(item, value=st.session_state.checks_normas[item], key=item)
+        c_leg1, c_leg2 = st.columns([0.7, 0.3])
+        with c_leg1:
+            for cat, items in categorias.items():
+                with st.expander(cat, expanded=True):
+                    for item in items:
+                        st.session_state.checks_normas[item] = st.checkbox(item, value=st.session_state.checks_normas[item], key=item)
             
         total_items_actuales = sum(len(items) for items in categorias.values())
         items_cumplidos = sum(1 for cat in categorias.values() for item in cat if st.session_state.checks_normas.get(item, False))
         porcentaje_legal = (items_cumplidos / total_items_actuales) * 100 if total_items_actuales > 0 else 0
         
-        st.write("---")
-        st.write(f"#### Índice de Integridad Institucional: {int(porcentaje_legal)}%")
-        st.progress(porcentaje_legal / 100)
-        
         with c_leg2:
-            pdf_bytes = generar_pdf_legal_bytes(categorias, st.session_state.checks_normas, porcentaje_legal)
-            st.download_button(label="Descargar Reporte Legal", data=pdf_bytes, file_name=f"Reporte_Legal_{datetime.now().strftime('%d%m%Y')}.pdf", mime="application/pdf", use_container_width=True)
+            st.write(f"#### Índice de Integridad: {int(porcentaje_legal)}%")
+            st.progress(porcentaje_legal / 100)
+            st.divider()
+            if st.button("Preparar Reporte Legal", use_container_width=True):
+                with st.spinner("Compilando auditoría normativa..."):
+                    st.session_state['pdf_legal'] = generar_pdf_legal_bytes(categorias, st.session_state.checks_normas, porcentaje_legal)
+            
+            if 'pdf_legal' in st.session_state:
+                st.download_button(label="Descargar Auditoría PDF", data=st.session_state['pdf_legal'], file_name=f"Reporte_Legal_{datetime.now().strftime('%d%m%Y')}.pdf", mime="application/pdf", use_container_width=True)
 
     with tabs[4]:
         st.write("### Auditoría de Tuberías de Datos (Data Cruda)")
