@@ -247,7 +247,6 @@ def main():
         c_cam = [c for c in df_rop.columns if "Tendido" in c][0]
         
         # --- LÓGICA INTELIGENTE DE COLUMNAS (ASIGNACIÓN REAL DE ROPEROS) ---
-        # Busca primero si ya creaste la columna "Colaborador asignado..."
         col_enf_candidates = [c for c in df_rop.columns if "asignado" in c.lower() or "evaluad" in c.lower()]
         if col_enf_candidates:
             col_enf = col_enf_candidates[0]
@@ -376,15 +375,15 @@ def main():
         df_evol = df_evol.ffill().bfill().fillna(0)
         df_evol.index = pd.to_datetime(df_evol.index)
         
-        # --- APLICAR AGRUPACIÓN ---
+        # --- APLICAR AGRUPACIÓN (FIX PANDAS DEPRECATION 'M' -> 'ME', 'Y' -> 'YE') ---
         if agrupacion == "Semana":
             df_plot = df_evol.resample('W-MON').mean()
             df_plot.index = df_plot.index.strftime('Semana %W - %Y')
         elif agrupacion == "Mes":
-            df_plot = df_evol.resample('M').mean()
+            df_plot = df_evol.resample('ME').mean()
             df_plot.index = df_plot.index.strftime('%Y-%m')
         elif agrupacion == "Año":
-            df_plot = df_evol.resample('Y').mean()
+            df_plot = df_evol.resample('YE').mean()
             df_plot.index = df_plot.index.strftime('%Y')
         else:
             df_plot = df_evol
@@ -506,7 +505,6 @@ def main():
         st.write("### Auditoría de Tuberías de Datos (Data Cruda)")
         st.info("Verifica los registros extraídos de Google Sheets tras aplicar los filtros de fecha. Usa las pestañas internas para navegar.")
         
-        # --- SUB-PESTAÑAS PARA MEJORAR LA VISUALIZACIÓN ---
         sub_t1, sub_t2, sub_t3 = st.tabs(["🧹 Servicios Generales", "☀️ Enfermería Vespertina", "🌙 Rondines Nocturnos"])
         
         with sub_t1:
@@ -521,7 +519,7 @@ def main():
             st.write("**Data de: Bitácora Transaccional de Escaneos QR**")
             st.dataframe(df_ron, use_container_width=True)
 
-    st.markdown("<div class='footer-watermark'>Sunhaven Intelligence Suite - Enterprise Edition</div>", unsafe_allow_html=True)
+st.markdown("<div class='footer-watermark'>Sunhaven Intelligence Suite - Enterprise Edition</div>", unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
