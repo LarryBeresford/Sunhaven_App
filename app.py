@@ -49,19 +49,18 @@ HEX_NAVY = "#1e293b"
 HEX_RED = "#dc2626"
 HEX_GREEN = "#16a34a"
 
-# --- PALETA PDF SUNHAVEN ---
 C_NAVY = (31, 58, 82)
 C_SUN = (211, 84, 0)
 C_DARK = (44, 62, 80)
 C_LIGHT = (245, 247, 248)
 
-# --- REGLAS DE NEGOCIO Y TURNOS (FIREWALL LÓGICO) ---
+# --- REGLAS DE NEGOCIO Y TURNOS ---
 ENFERMERAS_ROL_A = ["Consuelo Ceja Liborio", "Jaqueline Hernández Sosa"]
 ENFERMERAS_ROL_B = ["Silvia Rodríguez Reynaga", "Guadalupe Georgia Lopez Ceja"]
 ENFERMERAS_NOCHE = ENFERMERAS_ROL_A + ENFERMERAS_ROL_B
 
 # ==========================================
-# 1. MOTOR PDF LEGAL
+# 1. MOTOR PDF LEGAL (DISEÑO NORMA POR NORMA)
 # ==========================================
 class LegalPDF(FPDF):
     def header(self):
@@ -119,7 +118,7 @@ class LegalPDF(FPDF):
         self.set_font('Helvetica', 'B', 11)
         self.cell(0, 6, 'Ing. Larry Beresford', 0, 1, 'C')
 
-def generar_pdf_legal_bytes(checks_dict, porcentaje):
+def generar_pdf_legal_bytes(categorias_dict, checks_dict, porcentaje):
     pdf = LegalPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.cover_page(datetime.now().strftime("%d/%m/%Y"))
@@ -137,37 +136,45 @@ def generar_pdf_legal_bytes(checks_dict, porcentaje):
     pdf.cell(0, 8, f"Nivel de cumplimiento general de la institución: {porcentaje:.1f}%", 0, 1)
     pdf.ln(5)
     
+    # --- ENCABEZADO DE TABLA ---
     pdf.set_fill_color(*C_NAVY)
     pdf.set_text_color(255, 255, 255)
     pdf.set_font('Helvetica', 'B', 9)
     pdf.cell(150, 8, "REQUISITO NORMATIVO", 1, 0, 'C', True)
     pdf.cell(40, 8, "ESTATUS", 1, 1, 'C', True)
     
-    pdf.set_font('Helvetica', '', 8)
-    fill_row = False
-    
-    for req, estado in checks_dict.items():
-        pdf.set_fill_color(*C_LIGHT) if fill_row else pdf.set_fill_color(255, 255, 255)
-        pdf.set_text_color(*C_DARK)
-        
-        # Truncar texto muy largo para que no rompa la tabla
-        req_texto = f" {req}"
-        if len(req_texto) > 90: req_texto = req_texto[:87] + "..."
-        
-        pdf.cell(150, 8, req_texto, 1, 0, 'L', fill_row)
-        
-        if estado:
-            pdf.set_text_color(39, 174, 96)
-            txt_estado = "CUMPLE"
-        else:
-            pdf.set_text_color(231, 76, 60)
-            txt_estado = "PENDIENTE"
-            
+    # --- LLENADO DINÁMICO POR CATEGORÍA (Norma por Norma) ---
+    for cat, items in categorias_dict.items():
+        # Fila de Categoría (Agrupador)
+        pdf.set_fill_color(220, 230, 240) # Azul muy clarito
+        pdf.set_text_color(*C_NAVY)
         pdf.set_font('Helvetica', 'B', 8)
-        pdf.cell(40, 8, txt_estado, 1, 1, 'C', fill_row)
-        pdf.set_font('Helvetica', '', 8)
+        pdf.cell(190, 7, f" {cat.upper()}", 1, 1, 'L', True)
         
-        fill_row = not fill_row
+        fill_row = False
+        for req in items:
+            estado = checks_dict.get(req, False)
+            pdf.set_fill_color(*C_LIGHT) if fill_row else pdf.set_fill_color(255, 255, 255)
+            pdf.set_text_color(*C_DARK)
+            
+            # Truncar si es muy largo
+            req_texto = f"   • {req}"
+            if len(req_texto) > 90: req_texto = req_texto[:87] + "..."
+            
+            pdf.set_font('Helvetica', '', 8)
+            pdf.cell(150, 7, req_texto, 1, 0, 'L', fill_row)
+            
+            if estado:
+                pdf.set_text_color(39, 174, 96)
+                txt_estado = "CUMPLE"
+            else:
+                pdf.set_text_color(231, 76, 60)
+                txt_estado = "PENDIENTE"
+                
+            pdf.set_font('Helvetica', 'B', 8)
+            pdf.cell(40, 7, txt_estado, 1, 1, 'C', fill_row)
+            
+            fill_row = not fill_row
 
     return pdf.output(dest='S').encode('latin-1')
 
@@ -331,9 +338,8 @@ def main():
         st.plotly_chart(fig_evol, use_container_width=True)
 
     with tabs[2]:
-        st.write("### Rendimiento Detallado por Personal (Segregación Estricta)")
+        st.write("### Rendimiento Detallado por Personal")
         
-        # --- LÓGICA ESTRICTA DE EXCLUSIVIDAD MUTUA ---
         personal_diurno = set(df_rop[col_enf].dropna().unique()) - set(ENFERMERAS_NOCHE)
         personal_total = sorted(list(personal_diurno.union(set(ENFERMERAS_NOCHE))))
         
@@ -342,11 +348,11 @@ def main():
             if emp in ENFERMERAS_NOCHE:
                 n_score = pct_nocturnos.get(emp, None)
                 if n_score is not None:
-                    ranking_data.append({"Colaborador": emp, "Turno Efectivo": "Nocturno (Auditoría Conductual)", "Puntaje (%)": round(n_score, 1)})
+                    ranking_data.append({"Colaborador": emp, "Turno": "Nocturno", "Puntaje (%)": round(n_score, 1)})
             else:
                 v_score = df_rop[df_rop[col_enf] == emp]['Promedio'].mean()
                 if pd.notna(v_score):
-                    ranking_data.append({"Colaborador": emp, "Turno Efectivo": "Vespertino (Auditoría Física)", "Puntaje (%)": round(v_score, 1)})
+                    ranking_data.append({"Colaborador": emp, "Turno": "Vespertino", "Puntaje (%)": round(v_score, 1)})
             
         df_ranking = pd.DataFrame(ranking_data).sort_values("Puntaje (%)", ascending=False).reset_index(drop=True)
         
@@ -356,55 +362,52 @@ def main():
             st.dataframe(df_ranking, use_container_width=True)
             
         with c_r2:
-            st.write("🔍 **Buscador de Expediente Operativo**")
+            st.write("🔍 **Buscador Operativo**")
             sel = st.selectbox("Selecciona colaborador(a):", personal_total)
             
-            # --- EVALUACIÓN EXCLUSIVA POR TURNO ---
             if sel in ENFERMERAS_NOCHE:
-                st.metric("🌙 Desempeño Nocturno (Conductual)", f"{pct_nocturnos.get(sel, 0):.1f}%")
-                st.info("💡 **Aviso Metodológico:**\nEste KPI evalúa estrictamente el cumplimiento del protocolo de **rondines de seguridad**. Su calificación depende de sus horas de escaneo vs la meta de su Rol (A o B).")
+                st.metric("🌙 Desempeño Nocturno", f"{pct_nocturnos.get(sel, 0):.1f}%")
             else:
                 df_sel = df_rop[df_rop[col_enf] == sel]
                 if not df_sel.empty:
-                    st.metric("☀️ Desempeño Vespertino (Físico)", f"{df_sel['Promedio'].mean():.1f}%")
-                    st.info("💡 **Aviso Metodológico:**\nEste KPI **NO evalúa a la persona en abstracto**, sino las condiciones físicas (5S y Tendido) de la zona específica que se le asignó durante su turno.")
+                    st.metric("☀️ Desempeño Vespertino", f"{df_sel['Promedio'].mean():.1f}%")
                     st.dataframe(df_sel[['Fecha', c_5s, c_cam, 'Promedio']], use_container_width=True)
                 else:
                     st.warning("Sin registros operativos.")
 
     with tabs[3]:
-        st.write("### Checklist de Blindaje Institucional")
-        st.write("Auditoría preventiva de acuerdo con las normativas municipales, estatales y federales vigentes.")
+        st.write("### Auditoría y Blindaje Institucional")
+        st.write("Desglose normativo aplicable para cumplimiento ante autoridades. (Basado en el documento de normatividad interna).")
         
-        # --- MATRIZ LEGAL EXTRAÍDA DE "Normas-3.pdf" ---
+        # --- MATRIZ LEGAL DESGLOSADA NORMA POR NORMA ---
         categorias = {
-            "Regulación Sanitaria (COPRISJAL / SSA)": [
+            "COPRISJAL (Regulación Sanitaria)": [
                 "Aviso de Funcionamiento y Responsable Sanitario exhibido",
                 "Aviso de Botiquín/Farmacia y Recetario Controlado autorizado",
-                "NOM-031-SSA3: Manuales, Accesibilidad física y Bitácoras diarias",
-                "NOM-004-SSA3: Expedientes Clínicos integrados y con resguardo seguro",
-                "NOM-087-SEMARNAT: Botes rígidos, bolsas rojas y contrato de RPBI",
-                "NOM-045 y NOM-251: Protocolos de Infecciones, Higiene y Salud en Cocina",
+                "NOM-031-SSA3 (Asistencia Social, Manuales y Bitácoras)",
+                "NOM-004-SSA3 (Expedientes Clínicos y Resguardo seguro)",
+                "NOM-087-SEMARNAT (Botes rígidos, bolsas rojas y contrato RPBI)",
+                "NOM-045 y NOM-251 (Protocolos de Infecciones e Higiene en Cocina)",
                 "Certificado vigente de fumigación y control de plagas"
             ],
-            "Seguridad y Salud Laboral (STPS)": [
+            "STPS (Seguridad y Salud Laboral)": [
                 "Reglamento Interior de Trabajo (RIT) depositado ante autoridad",
-                "NOM-035-STPS: Política de prevención de Riesgos Psicosociales",
-                "NOM-019-STPS: Comisión de Seguridad e Higiene conformada",
-                "NOM-036-STPS: Prevención de Riesgos Ergonómicos (Carga de pacientes)",
-                "NOM-030-STPS: Diagnóstico Integral de seguridad en el trabajo",
+                "NOM-035-STPS (Política de prevención de Riesgos Psicosociales)",
+                "NOM-019-STPS (Comisión de Seguridad e Higiene conformada)",
+                "NOM-036-STPS (Prevención de Riesgos Ergonómicos / Carga)",
+                "NOM-030-STPS (Diagnóstico Integral de seguridad en el trabajo)",
                 "Constancias de Habilidades Laborales emitidas (DC-3)"
             ],
-            "Protección Civil y Ecología (Zapopan)": [
+            "Protección Civil y Ecología (Ayuntamiento)": [
                 "Programa Interno de Protección Civil (PIPC) con visto bueno",
                 "Póliza de Responsabilidad Civil (Daños a terceros) vigente",
-                "Dictámenes Técnicos vigentes: Estructural (DRO), Eléctrico y Gas LP",
-                "Equipamiento: Extintores (ABC/K), Detectores de humo, Señalética",
+                "Dictámenes Técnicos vigentes (Estructural DRO, Eléctrico y Gas LP)",
+                "Equipamiento instalado (Extintores ABC/K, Detectores, Señalética)",
                 "Brigadas capacitadas y evidencia de mínimo 2 simulacros anuales",
                 "Mantenimiento de trampas de grasa y recolección de aceite vegetal",
-                "Licencia Municipal de Giro Comercial vigente"
+                "Licencia Municipal de Giro Comercial vigente y a la vista"
             ],
-            "Cumplimiento Legal y PROFECO": [
+            "Legal, Privacidad y PROFECO": [
                 "Aviso de Privacidad Integral exhibido (INAI)",
                 "Consentimiento expreso firmado para tratamiento de Datos Sensibles",
                 "Contratos de prestación de servicios registrados ante PROFECO",
@@ -413,25 +416,33 @@ def main():
             ]
         }
         
+        # Validación Inteligente de Caché para evitar KeyError
         if 'checks_normas' not in st.session_state:
-            st.session_state.checks_normas = {item: False for cat in categorias.values() for item in cat}
-
-        c_leg1, c_leg2 = st.columns(2)
-        idx = 0
-        for cat, items in categorias.items():
-            col = c_leg1 if idx % 2 == 0 else c_leg2
-            with col.container():
-                st.markdown(f"<p style='font-weight:700; color:{HEX_NAVY}; margin-top:10px;'>{cat}</p>", unsafe_allow_html=True)
-                for item in items:
-                    st.session_state.checks_normas[item] = st.checkbox(item, value=st.session_state.checks_normas[item], key=item)
-            idx += 1
+            st.session_state.checks_normas = {}
             
-        porcentaje_legal = (sum(st.session_state.checks_normas.values()) / len(st.session_state.checks_normas)) * 100
+        for cat, items in categorias.items():
+            for item in items:
+                if item not in st.session_state.checks_normas:
+                    st.session_state.checks_normas[item] = False
+
+        # Dibujar UI
+        for cat, items in categorias.items():
+            with st.expander(cat, expanded=True):
+                for item in items:
+                    # El checkbox se amarra directo a la llave de session_state
+                    st.session_state.checks_normas[item] = st.checkbox(item, value=st.session_state.checks_normas[item], key=item)
+            
+        # Calcular progreso con los items actuales de las categorias
+        total_items_actuales = sum(len(items) for items in categorias.values())
+        items_cumplidos = sum(1 for cat in categorias.values() for item in cat if st.session_state.checks_normas.get(item, False))
+        
+        porcentaje_legal = (items_cumplidos / total_items_actuales) * 100 if total_items_actuales > 0 else 0
+        
         st.write("---")
         st.write(f"#### Índice de Integridad Institucional: {int(porcentaje_legal)}%")
         st.progress(porcentaje_legal / 100)
         
-        pdf_bytes = generar_pdf_legal_bytes(st.session_state.checks_normas, porcentaje_legal)
+        pdf_bytes = generar_pdf_legal_bytes(categorias, st.session_state.checks_normas, porcentaje_legal)
         st.download_button(
             label="📄 Descargar Reporte de Blindaje Legal (PDF)",
             data=pdf_bytes,
