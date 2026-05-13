@@ -60,7 +60,7 @@ ENFERMERAS_ROL_B = ["Silvia Rodríguez Reynaga", "Guadalupe Georgia Lopez Ceja"]
 ENFERMERAS_NOCHE = ENFERMERAS_ROL_A + ENFERMERAS_ROL_B
 
 # ==========================================
-# 1. MOTOR PDF LEGAL BLLINDADO
+# 1. MOTOR PDF LEGAL BLINDADO
 # ==========================================
 def sanitizar_texto(texto):
     """Limpia caracteres especiales que rompen FPDF"""
@@ -161,8 +161,7 @@ def generar_pdf_legal_bytes(categorias_dict, checks_dict, porcentaje):
             pdf.set_fill_color(*C_LIGHT) if fill_row else pdf.set_fill_color(255, 255, 255)
             pdf.set_text_color(*C_DARK)
             
-            # Truncar y sanitizar texto
-            req_texto = f"   - {req}" # Cambié la viñeta por guion para evitar errores FPDF
+            req_texto = f"   - {req}"
             if len(req_texto) > 90: req_texto = req_texto[:87] + "..."
             req_texto_limpio = sanitizar_texto(req_texto)
             
@@ -451,8 +450,17 @@ def main():
         )
 
     with tabs[4]:
-        st.write("### Consola de Verificación")
-        st.dataframe(df_serv.head(10), use_container_width=True)
+        st.write("### Auditoría de Tuberías de Datos (Data Cruda)")
+        st.info("Verifica los registros extraídos de Google Sheets tras aplicar los filtros de fecha y la conversión de texto a métricas.")
+        
+        st.write("#### 1. Servicios Generales (Cocina, Lavandería, Limpieza)")
+        st.dataframe(df_serv, use_container_width=True)
+        
+        st.write("#### 2. Enfermería Vespertina (5S Roperos y Camas)")
+        st.dataframe(df_rop, use_container_width=True)
+        
+        st.write("#### 3. Rondines Nocturnos (Escaneos QR de Seguridad)")
+        st.dataframe(df_ron, use_container_width=True)
 
     st.markdown("<div class='footer-watermark'>Sunhaven Intelligence Suite - Enterprise Edition</div>", unsafe_allow_html=True)
 
