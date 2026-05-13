@@ -4,7 +4,6 @@ import gspread
 import json
 import os
 import sys
-import subprocess
 from datetime import datetime, timedelta
 import plotly.graph_objects as go
 import plotly.express as px
@@ -16,7 +15,7 @@ from fpdf import FPDF
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PATH_CREDS = os.path.join(BASE_DIR, 'config', 'sunhaven-credentials.json')
 
-st.set_page_config(page_title="Sunhaven | Operational Intelligence", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Sunhaven | Operaciones", layout="wide", initial_sidebar_state="expanded")
 
 # --- DISEÑO CORPORATIVO REFINADO ---
 st.markdown("""
@@ -60,14 +59,13 @@ ENFERMERAS_ROL_B = ["Silvia Rodríguez Reynaga", "Guadalupe Georgia Lopez Ceja"]
 ENFERMERAS_NOCHE = ENFERMERAS_ROL_A + ENFERMERAS_ROL_B
 
 # ==========================================
-# 1. MOTOR PDF LEGAL BLINDADO
+# 1. MOTOR PDF (CLASE MAESTRA SUNHAVEN)
 # ==========================================
 def sanitizar_texto(texto):
-    """Limpia caracteres especiales que rompen FPDF"""
     txt = str(texto).replace('•', '-').replace('“', '"').replace('”', '"').replace('–', '-')
     return txt.encode('latin-1', 'replace').decode('latin-1')
 
-class LegalPDF(FPDF):
+class SunhavenPDF(FPDF):
     def header(self):
         if self.page_no() == 1: return
         self.set_fill_color(*C_NAVY)
@@ -77,7 +75,7 @@ class LegalPDF(FPDF):
         self.set_y(9)
         self.set_font('Helvetica', 'B', 16)
         self.set_text_color(255, 255, 255)
-        self.cell(0, 8, sanitizar_texto('REPORTE EJECUTIVO - BLINDAJE NORMATIVO'), 0, 1, 'C')
+        self.cell(0, 8, sanitizar_texto(self.titulo_header), 0, 1, 'C')
         self.ln(12)
 
     def footer(self):
@@ -92,7 +90,7 @@ class LegalPDF(FPDF):
         self.set_x(10)
         self.cell(190, 10, sanitizar_texto('Ing. Larry Beresford'), 0, 0, 'R')
 
-    def cover_page(self, fecha_str):
+    def cover_page(self, titulo_principal, subtitulo, fecha_str):
         self.add_page()
         self.set_fill_color(*C_NAVY)
         self.rect(0, 0, 210, 100, 'F')
@@ -109,13 +107,16 @@ class LegalPDF(FPDF):
         self.set_font('Helvetica', 'B', 22)
         self.set_text_color(*C_DARK)
         self.cell(0, 10, sanitizar_texto('REPORTE EJECUTIVO'), 0, 1, 'C')
-        self.set_font('Helvetica', 'B', 26)
+        self.set_font('Helvetica', 'B', 22)
         self.set_text_color(*C_SUN)
-        self.cell(0, 12, sanitizar_texto('CUMPLIMIENTO LEGAL Y NORMATIVO'), 0, 1, 'C')
+        self.cell(0, 12, sanitizar_texto(titulo_principal), 0, 1, 'C')
+        self.set_font('Helvetica', '', 14)
+        self.set_text_color(*C_DARK)
+        self.cell(0, 8, sanitizar_texto(subtitulo), 0, 1, 'C')
         self.set_y(220)
         self.set_font('Helvetica', 'B', 12)
         self.set_text_color(*C_NAVY)
-        self.cell(0, 8, sanitizar_texto(f'FECHA DE EMISIÓN: {fecha_str}'), 0, 1, 'C')
+        self.cell(0, 8, sanitizar_texto(f'PERIODO EVALUADO: {fecha_str}'), 0, 1, 'C')
         self.set_y(260)
         self.set_font('Helvetica', '', 11)
         self.set_text_color(*C_DARK)
@@ -123,10 +124,108 @@ class LegalPDF(FPDF):
         self.set_font('Helvetica', 'B', 11)
         self.cell(0, 6, sanitizar_texto('Ing. Larry Beresford'), 0, 1, 'C')
 
-def generar_pdf_legal_bytes(categorias_dict, checks_dict, porcentaje):
-    pdf = LegalPDF()
+# --- GENERADOR DE PDF: DASHBOARD OPERATIVO ---
+def generar_pdf_dashboard(ico, estatus, areas_kpi, df_criterios, df_ranking, fechas_str):
+    pdf = SunhavenPDF()
+    pdf.titulo_header = "REPORTE EJECUTIVO - OPERACIONES"
     pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.cover_page(datetime.now().strftime("%d/%m/%Y"))
+    pdf.cover_page("INDICADORES OPERATIVOS (KPI)", "Estado de las Infraestructuras y Servicios", fechas_str)
+    
+    pdf.add_page()
+    pdf.set_font('Helvetica', 'B', 14)
+    pdf.set_text_color(*C_NAVY)
+    pdf.cell(0, 8, sanitizar_texto("1. ESTATUS GLOBAL INSTITUCIONAL"), 0, 1, 'L')
+    pdf.set_draw_color(*C_SUN)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(5)
+    
+    pdf.set_font('Helvetica', '', 11)
+    pdf.set_text_color(*C_DARK)
+    pdf.cell(0, 8, sanitizar_texto(f"Índice de Cumplimiento Operativo (ICO Maestro): {ico:.1f}%"), 0, 1)
+    pdf.cell(0, 8, sanitizar_texto(f"Dictamen del Sistema: {estatus}"), 0, 1)
+    pdf.ln(10)
+    
+    # Tabla Áreas
+    pdf.set_font('Helvetica', 'B', 12)
+    pdf.set_text_color(*C_NAVY)
+    pdf.cell(0, 8, sanitizar_texto("2. DESEMPEÑO POR DEPARTAMENTO"), 0, 1, 'L')
+    pdf.ln(3)
+    pdf.set_fill_color(*C_NAVY)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font('Helvetica', 'B', 10)
+    pdf.cell(100, 8, sanitizar_texto("Área Operativa"), 1, 0, 'C', True)
+    pdf.cell(50, 8, sanitizar_texto("Cumplimiento"), 1, 1, 'C', True)
+    
+    pdf.set_font('Helvetica', '', 10)
+    fill = False
+    for area, val in areas_kpi.items():
+        pdf.set_fill_color(*C_LIGHT) if fill else pdf.set_fill_color(255, 255, 255)
+        pdf.set_text_color(*C_DARK)
+        pdf.cell(100, 8, sanitizar_texto(f" {area}"), 1, 0, 'L', fill)
+        if val >= 90: pdf.set_text_color(39, 174, 96)
+        else: pdf.set_text_color(231, 76, 60)
+        pdf.cell(50, 8, sanitizar_texto(f"{val:.1f}%"), 1, 1, 'C', fill)
+        fill = not fill
+        
+    pdf.ln(10)
+    
+    # Tabla Causa Raíz
+    pdf.set_font('Helvetica', 'B', 12)
+    pdf.set_text_color(*C_NAVY)
+    pdf.cell(0, 8, sanitizar_texto("3. ANÁLISIS DE CAUSA RAÍZ (CRITERIOS CRÍTICOS)"), 0, 1, 'L')
+    pdf.ln(3)
+    pdf.set_fill_color(*C_NAVY)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font('Helvetica', 'B', 10)
+    pdf.cell(100, 8, sanitizar_texto("Criterio Evaluado"), 1, 0, 'C', True)
+    pdf.cell(50, 8, sanitizar_texto("Desempeño"), 1, 1, 'C', True)
+    
+    pdf.set_font('Helvetica', '', 10)
+    fill = False
+    for index, row in df_criterios.head(5).iterrows(): # Solo los 5 peores
+        pdf.set_fill_color(*C_LIGHT) if fill else pdf.set_fill_color(255, 255, 255)
+        pdf.set_text_color(*C_DARK)
+        pdf.cell(100, 8, sanitizar_texto(f" {row['index']}"), 1, 0, 'L', fill)
+        if row['V'] >= 90: pdf.set_text_color(39, 174, 96)
+        else: pdf.set_text_color(231, 76, 60)
+        pdf.cell(50, 8, sanitizar_texto(f"{row['V']:.1f}%"), 1, 1, 'C', fill)
+        fill = not fill
+        
+    pdf.add_page()
+    pdf.set_font('Helvetica', 'B', 12)
+    pdf.set_text_color(*C_NAVY)
+    pdf.cell(0, 8, sanitizar_texto("4. RANKING DE DESEMPEÑO INDIVIDUAL"), 0, 1, 'L')
+    pdf.set_draw_color(*C_SUN)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(5)
+    
+    pdf.set_fill_color(*C_NAVY)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font('Helvetica', 'B', 9)
+    pdf.cell(90, 8, sanitizar_texto("Colaborador"), 1, 0, 'C', True)
+    pdf.cell(60, 8, sanitizar_texto("Tipo de Evaluación"), 1, 0, 'C', True)
+    pdf.cell(30, 8, sanitizar_texto("Puntaje"), 1, 1, 'C', True)
+    
+    pdf.set_font('Helvetica', '', 9)
+    fill = False
+    for index, row in df_ranking.iterrows():
+        pdf.set_fill_color(*C_LIGHT) if fill else pdf.set_fill_color(255, 255, 255)
+        pdf.set_text_color(*C_DARK)
+        pdf.cell(90, 8, sanitizar_texto(f" {row['Colaborador']}"), 1, 0, 'L', fill)
+        pdf.cell(60, 8, sanitizar_texto(f" {row['Turno']}"), 1, 0, 'C', fill)
+        if row['Puntaje (%)'] >= 90: pdf.set_text_color(39, 174, 96)
+        else: pdf.set_text_color(231, 76, 60)
+        pdf.cell(30, 8, sanitizar_texto(f"{row['Puntaje (%)']:.1f}%"), 1, 1, 'C', fill)
+        fill = not fill
+
+    return pdf.output(dest='S').encode('latin-1', 'replace')
+
+# --- GENERADOR DE PDF: LEGAL ---
+def generar_pdf_legal_bytes(categorias_dict, checks_dict, porcentaje):
+    pdf = SunhavenPDF()
+    pdf.titulo_header = "REPORTE EJECUTIVO - BLINDAJE NORMATIVO"
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.cover_page("CUMPLIMIENTO LEGAL Y NORMATIVO", "Auditoría de Prevención Gubernamental", datetime.now().strftime("%d/%m/%Y"))
     
     pdf.add_page()
     pdf.set_font('Helvetica', 'B', 14)
@@ -211,29 +310,22 @@ def cargar_datos_maestros():
 # ==========================================
 def main():
     with st.sidebar:
-        st.markdown("### SISTEMA OPERATIVO SUNHAVEN")
+        st.markdown("### PANEL DE CONTROL")
         st.divider()
         if st.button("Sincronizar Base de Datos", use_container_width=True):
             cargar_datos_maestros.clear()
             st.rerun()
             
+        st.markdown("#### Periodo de Análisis")
         hoy = datetime.now()
         treinta_dias_atras = hoy - timedelta(days=30)
-        fechas = st.date_input("Seleccionar Rango de Análisis", [treinta_dias_atras, hoy])
+        fechas = st.date_input("Seleccione el rango operativo:", [treinta_dias_atras, hoy])
         
         if len(fechas) == 2:
             fecha_inicio, fecha_fin = fechas
+            fechas_str = f"{fecha_inicio.strftime('%d/%m/%Y')} al {fecha_fin.strftime('%d/%m/%Y')}"
         else:
             st.stop()
-        
-        st.divider()
-        st.markdown("### GENERACION DE REPORTES")
-        if st.button("Reporte de Operaciones (PDF)", use_container_width=True):
-            subprocess.run([sys.executable, os.path.join(BASE_DIR, 'tools', 'bot_operaciones.py')])
-            st.success("Operaciones PDF listo.")
-        if st.button("Reporte Rondines (PDF)", use_container_width=True):
-            subprocess.run([sys.executable, os.path.join(BASE_DIR, 'tools', 'auditor_rondines.py')])
-            st.success("Rondines PDF listo.")
             
     data = cargar_datos_maestros()
     df_ron, df_rop, df_serv = data["n"].copy(), data["v"].copy(), data["s"].copy()
@@ -246,7 +338,6 @@ def main():
         c_5s = [c for c in df_rop.columns if "Orden" in c][0]
         c_cam = [c for c in df_rop.columns if "Tendido" in c][0]
         
-        # --- LÓGICA INTELIGENTE DE COLUMNAS (ASIGNACIÓN REAL DE ROPEROS) ---
         col_enf_candidates = [c for c in df_rop.columns if "asignado" in c.lower() or "evaluad" in c.lower()]
         if col_enf_candidates:
             col_enf = col_enf_candidates[0]
@@ -300,21 +391,50 @@ def main():
         areas_kpi = {k: (v if pd.notna(v) else 0) for k, v in areas_kpi.items()}
         ico_master = sum(areas_kpi.values()) / len(areas_kpi)
 
+        # Causa Raíz
+        crit = {"Uniforme": df_serv[c_uni].mean(), "Basura": df_serv[c_bas].mean(), "Ropa": df_serv[c_lav_r].mean(), "Jabón": df_serv[c_lav_j].mean(), "Zonas": df_serv[c_lim].mean(), "5S Roperos": df_rop[c_5s].mean(), "Tendido Camas": df_rop[c_cam].mean(), "Rondines Noct.": val_nocturno}
+        df_c = pd.DataFrame.from_dict(crit, orient='index', columns=['V']).sort_values('V', ascending=True).reset_index()
+
+        # Ranking Personal
+        personal_diurno = set(df_rop[col_enf].dropna().unique()) - set(ENFERMERAS_NOCHE)
+        personal_total = sorted(list(personal_diurno.union(set(ENFERMERAS_NOCHE))))
+        ranking_data = []
+        for emp in personal_total:
+            if emp in ENFERMERAS_NOCHE:
+                n_score = pct_nocturnos.get(emp, None)
+                if n_score is not None:
+                    ranking_data.append({"Colaborador": emp, "Turno": "Nocturno", "Puntaje (%)": round(n_score, 1)})
+            else:
+                v_score = df_rop[df_rop[col_enf] == emp]['Promedio'].mean()
+                if pd.notna(v_score):
+                    ranking_data.append({"Colaborador": emp, "Turno": "Vespertino", "Puntaje (%)": round(v_score, 1)})
+        df_ranking = pd.DataFrame(ranking_data).sort_values("Puntaje (%)", ascending=False).reset_index(drop=True)
+
     except Exception as e:
         st.error(f"Error: {e}")
         ico_master = 0
+        estatus_txt = "ERROR DE DATOS"
+        df_c = pd.DataFrame()
+        df_ranking = pd.DataFrame()
+
+    estatus_txt = "ESTABLE" if ico_master >= 90 else "ATENCION REQUERIDA"
 
     # --- HEADER ---
     st.markdown(f"""<div class='exec-header'>
         <div><p style='margin:0; font-weight:700; color:#64748b; font-size:12px; letter-spacing:1px; text-transform:uppercase;'>Estatus Institucional</p>
-        <h2 style='margin:0; color:{HEX_GREEN if ico_master >= 90 else HEX_RED};'>{"ESTABLE" if ico_master >= 90 else "ATENCION REQUERIDA"}</h2></div>
+        <h2 style='margin:0; color:{HEX_GREEN if ico_master >= 90 else HEX_RED};'>{estatus_txt}</h2></div>
         <div style='text-align:right;'><p style='margin:0; font-weight:700; color:#64748b; font-size:12px; letter-spacing:1px; text-transform:uppercase;'>ICO Maestro</p>
         <h1 style='margin:0; font-size:48px;'>{ico_master:.1f}%</h1></div>
     </div>""", unsafe_allow_html=True)
 
-    tabs = st.tabs(["Tablero de Control", "Evolución Temporal", "Rendimiento Individual", "Blindaje Legal", "Auditoría"])
+    tabs = st.tabs(["Tablero de Control", "Evolución Temporal", "Rendimiento Individual", "Blindaje Legal", "Auditoría de Datos"])
 
     with tabs[0]:
+        c_btn1, c_btn2 = st.columns([0.8, 0.2])
+        with c_btn2:
+            pdf_dash_bytes = generar_pdf_dashboard(ico_master, estatus_txt, areas_kpi, df_c, df_ranking, fechas_str)
+            st.download_button(label="Descargar Reporte Operativo (PDF)", data=pdf_dash_bytes, file_name=f"Dashboard_Sunhaven_{fecha_fin.strftime('%d%m%Y')}.pdf", mime="application/pdf", use_container_width=True)
+
         cols = st.columns(5)
         for i, (area, valor) in enumerate(areas_kpi.items()):
             with cols[i]:
@@ -330,22 +450,16 @@ def main():
             st.plotly_chart(fig, use_container_width=True)
         with c2:
             st.write("### Análisis de Causa Raíz")
-            crit = {"Uniforme": df_serv[c_uni].mean(), "Basura": df_serv[c_bas].mean(), "Ropa": df_serv[c_lav_r].mean(), "Jabón": df_serv[c_lav_j].mean(), "Zonas": df_serv[c_lim].mean(), "5S Roperos": df_rop[c_5s].mean(), "Tendido Camas": df_rop[c_cam].mean(), "Rondines Noct.": val_nocturno}
-            df_c = pd.DataFrame.from_dict(crit, orient='index', columns=['V']).sort_values('V', ascending=True).reset_index()
             fig_c = px.bar(df_c, x='V', y='index', orientation='h', text_auto='.1f', color_discrete_sequence=[HEX_RED])
             fig_c.add_vline(x=90, line_dash="dash", line_color="black")
             st.plotly_chart(fig_c, use_container_width=True)
 
     with tabs[1]:
         st.write("### Evolución Histórica de Todos los Departamentos")
-        
-        # --- SELECTOR DE GRANULARIDAD ---
         agrupacion = st.radio("Seleccionar Agrupación Temporal:", ["Día", "Semana", "Mes", "Año"], horizontal=True)
         
-        # --- PREPARACIÓN DE SERIES DIARIAS ---
         rango_fechas = pd.date_range(fecha_inicio, fecha_fin)
         
-        # Nocturno (Cálculo Diario)
         df_ron_valido = df_ron[df_ron['Bloque'].notnull()].drop_duplicates(subset=['Fecha', 'Enfermera', 'Bloque'])
         conteo_diario_noc = df_ron_valido.groupby('Fecha').size()
         
@@ -355,11 +469,9 @@ def main():
             if d.weekday() in [0, 2, 4]: exp = len(ENFERMERAS_ROL_A) * 3
             elif d.weekday() in [1, 3, 5]: exp = len(ENFERMERAS_ROL_B) * 3
             else: exp = 0
-            
             if exp > 0: noc_diario.append(min((conteo_diario_noc.get(d_date, 0) / exp) * 100, 100))
             else: noc_diario.append(None)
             
-        # Otras áreas (Cálculo Diario)
         df_time_v = df_rop.groupby('Fecha')['Promedio'].mean()
         df_time_coc = df_serv.groupby('Fecha')[[c_uni, c_bas]].mean().mean(axis=1)
         df_time_lav = df_serv.groupby('Fecha')[[c_lav_r, c_lav_j]].mean().mean(axis=1)
@@ -375,7 +487,6 @@ def main():
         df_evol = df_evol.ffill().bfill().fillna(0)
         df_evol.index = pd.to_datetime(df_evol.index)
         
-        # --- APLICAR AGRUPACIÓN (FIX PANDAS DEPRECATION 'M' -> 'ME', 'Y' -> 'YE') ---
         if agrupacion == "Semana":
             df_plot = df_evol.resample('W-MON').mean()
             df_plot.index = df_plot.index.strftime('Semana %W - %Y')
@@ -395,45 +506,31 @@ def main():
 
     with tabs[2]:
         st.write("### Rendimiento Detallado por Personal")
-        
-        personal_diurno = set(df_rop[col_enf].dropna().unique()) - set(ENFERMERAS_NOCHE)
-        personal_total = sorted(list(personal_diurno.union(set(ENFERMERAS_NOCHE))))
-        
-        ranking_data = []
-        for emp in personal_total:
-            if emp in ENFERMERAS_NOCHE:
-                n_score = pct_nocturnos.get(emp, None)
-                if n_score is not None:
-                    ranking_data.append({"Colaborador": emp, "Turno": "Nocturno", "Puntaje (%)": round(n_score, 1)})
-            else:
-                v_score = df_rop[df_rop[col_enf] == emp]['Promedio'].mean()
-                if pd.notna(v_score):
-                    ranking_data.append({"Colaborador": emp, "Turno": "Vespertino", "Puntaje (%)": round(v_score, 1)})
-            
-        df_ranking = pd.DataFrame(ranking_data).sort_values("Puntaje (%)", ascending=False).reset_index(drop=True)
-        
         c_r1, c_r2 = st.columns([1.2, 0.8])
         with c_r1:
-            st.write("🏆 **Ranking General Unificado**")
+            st.write("**Tabla de Posiciones General**")
             st.dataframe(df_ranking, use_container_width=True)
             
         with c_r2:
-            st.write("🔍 **Buscador Operativo**")
+            st.write("**Buscador de Expediente Operativo**")
             sel = st.selectbox("Selecciona colaborador(a):", personal_total)
-            
             if sel in ENFERMERAS_NOCHE:
-                st.metric("🌙 Desempeño Nocturno", f"{pct_nocturnos.get(sel, 0):.1f}%")
+                st.metric("Desempeño Nocturno (Conductual)", f"{pct_nocturnos.get(sel, 0):.1f}%")
+                st.info("**Aviso Metodológico:**\nEste KPI evalúa estrictamente el cumplimiento del protocolo de rondines de seguridad.")
             else:
                 df_sel = df_rop[df_rop[col_enf] == sel]
                 if not df_sel.empty:
-                    st.metric("☀️ Desempeño Vespertino", f"{df_sel['Promedio'].mean():.1f}%")
+                    st.metric("Desempeño Vespertino (Físico)", f"{df_sel['Promedio'].mean():.1f}%")
+                    st.info("**Aviso Metodológico:**\nEste KPI evalúa las condiciones físicas de la zona asignada.")
                     st.dataframe(df_sel[['Fecha', c_5s, c_cam, 'Promedio']], use_container_width=True)
                 else:
                     st.warning("Sin registros operativos.")
 
     with tabs[3]:
-        st.write("### Auditoría y Blindaje Institucional")
-        st.write("Desglose normativo aplicable para cumplimiento ante autoridades. (Basado en el documento de normatividad interna).")
+        c_leg1, c_leg2 = st.columns([0.8, 0.2])
+        with c_leg1:
+            st.write("### Auditoría y Blindaje Institucional")
+            st.write("Desglose normativo aplicable para cumplimiento ante autoridades.")
         
         categorias = {
             "COPRISJAL (Regulación Sanitaria)": [
@@ -486,38 +583,24 @@ def main():
             
         total_items_actuales = sum(len(items) for items in categorias.values())
         items_cumplidos = sum(1 for cat in categorias.values() for item in cat if st.session_state.checks_normas.get(item, False))
-        
         porcentaje_legal = (items_cumplidos / total_items_actuales) * 100 if total_items_actuales > 0 else 0
         
         st.write("---")
         st.write(f"#### Índice de Integridad Institucional: {int(porcentaje_legal)}%")
         st.progress(porcentaje_legal / 100)
         
-        pdf_bytes = generar_pdf_legal_bytes(categorias, st.session_state.checks_normas, porcentaje_legal)
-        st.download_button(
-            label="📄 Descargar Reporte de Blindaje Legal (PDF)",
-            data=pdf_bytes,
-            file_name=f"Reporte_Legal_Sunhaven_{datetime.now().strftime('%Y_%m_%d')}.pdf",
-            mime="application/pdf",
-        )
+        with c_leg2:
+            pdf_bytes = generar_pdf_legal_bytes(categorias, st.session_state.checks_normas, porcentaje_legal)
+            st.download_button(label="Descargar Reporte Legal", data=pdf_bytes, file_name=f"Reporte_Legal_{datetime.now().strftime('%d%m%Y')}.pdf", mime="application/pdf", use_container_width=True)
 
     with tabs[4]:
         st.write("### Auditoría de Tuberías de Datos (Data Cruda)")
         st.info("Verifica los registros extraídos de Google Sheets tras aplicar los filtros de fecha. Usa las pestañas internas para navegar.")
         
-        sub_t1, sub_t2, sub_t3 = st.tabs(["🧹 Servicios Generales", "☀️ Enfermería Vespertina", "🌙 Rondines Nocturnos"])
-        
-        with sub_t1:
-            st.write("**Data de: Cocina, Lavandería y Limpieza General**")
-            st.dataframe(df_serv, use_container_width=True)
-            
-        with sub_t2:
-            st.write("**Data de: Evaluaciones de 5S en Roperos y Tendido de Camas**")
-            st.dataframe(df_rop, use_container_width=True)
-            
-        with sub_t3:
-            st.write("**Data de: Bitácora Transaccional de Escaneos QR**")
-            st.dataframe(df_ron, use_container_width=True)
+        sub_t1, sub_t2, sub_t3 = st.tabs(["Servicios Generales", "Enfermería Vespertina", "Rondines Nocturnos"])
+        with sub_t1: st.dataframe(df_serv, use_container_width=True)
+        with sub_t2: st.dataframe(df_rop, use_container_width=True)
+        with sub_t3: st.dataframe(df_ron, use_container_width=True)
 
 st.markdown("<div class='footer-watermark'>Sunhaven Intelligence Suite - Enterprise Edition</div>", unsafe_allow_html=True)
 
