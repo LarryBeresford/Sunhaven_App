@@ -682,7 +682,7 @@ def main():
         with sub_t2: st.dataframe(df_rop, use_container_width=True)
         with sub_t3: st.dataframe(df_ron, use_container_width=True)
 
-st.markdown("<div class='footer-watermark'>Sunhaven Intelligence Suite - Enterprise Edition</div>", unsafe_allow_html=True)
+st.markdown("<div class='footer-watermark'>Sunhaven Intelligence Suite - Enterprise Edition by Larry Beresford</div>", unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
