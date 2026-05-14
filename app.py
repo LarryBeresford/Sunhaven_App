@@ -674,7 +674,7 @@ def main():
                 st.download_button(label="Descargar Auditoría PDF", data=st.session_state['pdf_legal'], file_name=f"Reporte_Legal_{datetime.now().strftime('%d%m%Y')}.pdf", mime="application/pdf", use_container_width=True)
 
     with tabs[4]:
-        st.write("### Auditoría de Tuberías de Datos (Data Cruda)")
+        st.write("### Auditoría de Tuberías de Datos")
 #        st.info("Verifica los registros extraídos de Google Sheets tras aplicar los filtros de fecha. Usa las pestañas internas para navegar.")
         
         sub_t1, sub_t2, sub_t3 = st.tabs(["Servicios Generales", "Enfermería Vespertina", "Rondines Nocturnos"])
