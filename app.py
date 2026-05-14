@@ -675,7 +675,7 @@ def main():
 
     with tabs[4]:
         st.write("### Auditoría de Tuberías de Datos (Data Cruda)")
-        st.info("Verifica los registros extraídos de Google Sheets tras aplicar los filtros de fecha. Usa las pestañas internas para navegar.")
+#        st.info("Verifica los registros extraídos de Google Sheets tras aplicar los filtros de fecha. Usa las pestañas internas para navegar.")
         
         sub_t1, sub_t2, sub_t3 = st.tabs(["Servicios Generales", "Enfermería Vespertina", "Rondines Nocturnos"])
         with sub_t1: st.dataframe(df_serv, use_container_width=True)
