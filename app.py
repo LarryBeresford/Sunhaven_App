@@ -535,6 +535,7 @@ def procesar_super_nomina(df_bio, df_bitacora, df_kaizen, mes_num, anio_num):
 # 4. APLICACIÓN PRINCIPAL (ENRUTADOR)
 # ==========================================
 def main():
+    # --- SIDEBAR LIMPIA Y DINÁMICA ---
     with st.sidebar:
         st.markdown("### NAVEGADOR EMPRESARIAL")
         modulo_activo = st.radio("Seleccione el Módulo:", ["Dashboard de Operaciones", "Gestión de Nómina", "Turno Nocturno"], label_visibility="collapsed")
@@ -567,12 +568,27 @@ def main():
         if data is None: st.stop()
         df_ron, df_rop, df_serv = data["n"].copy(), data["v"].copy(), data["s"].copy()
 
+        # Variables por defecto
+        ico = 0
+        df_a, df_c, df_evol_base, df_ranking = pd.DataFrame(columns=['index', 'V']), pd.DataFrame(columns=['index', 'V']), pd.DataFrame(), pd.DataFrame()
+        kpi = {}
+
         try:
             def traducir(s): return pd.to_numeric(s.astype(str).str.strip().str.lower().replace({'sí': 10, 'si': 10, 'no': 0, 'cumple': 10, 'no cumple': 0, 'separada': 10, 'bien': 10, 'ok': 10, 'limpio': 10, 'sucio': 0}), errors='coerce') * 10
-            c_5s, c_cam = [c for c in df_rop.columns if "Orden" in c][0], [c for c in df_rop.columns if "Tendido" in c][0]
-            c_enf = [c for c in df_rop.columns if "asignado" in c.lower() or "evaluad" in c.lower()]
-            c_enf = c_enf[0] if c_enf else [c for c in df_rop.columns if "enfermera" in c.lower() or "nombre" in c.lower()][0]
-            c_uni, c_bas, c_lav_r, c_lav_j, c_lim = [c for c in df_serv.columns if "uniforme" in c.lower()][0], [c for c in df_serv.columns if "basura" in c.lower()][0], [c for c in df_serv.columns if "ropa" in c.lower() or "separad" in c.lower()][0], [c for c in df_serv.columns if "jabón" in c.lower() or "jabon" in c.lower()][0], [c for c in df_serv.columns if "zonas asignadas" in c.lower()][0]
+            def find_col(df, keywords):
+                for kw in keywords:
+                    cols = [c for c in df.columns if kw.lower() in c.lower()]
+                    if cols: return cols[0]
+                return None
+
+            c_5s, c_cam = find_col(df_rop, ["orden", "5s"]), find_col(df_rop, ["tendido", "cama"])
+            col_enf = find_col(df_rop, ["asignado", "evaluad", "enfermera", "nombre"])
+            c_uni, c_bas = find_col(df_serv, ["uniforme"]), find_col(df_serv, ["basura"])
+            c_lav_r, c_lav_j = find_col(df_serv, ["ropa", "separad"]), find_col(df_serv, ["jabón", "jabon"])
+            c_lim = find_col(df_serv, ["zonas asignadas", "limpieza"])
+
+            if not all([c_5s, c_cam, col_enf, c_uni, c_bas, c_lav_r, c_lav_j, c_lim]):
+                raise ValueError("Faltan columnas críticas en los Google Sheets.")
 
             for df in [df_ron, df_rop, df_serv]:
                 df['Marca temporal'] = pd.to_datetime(df['Marca temporal'], dayfirst=True, errors='coerce')
@@ -613,18 +629,18 @@ def main():
 
             kpi = {"Nocturno": v_noc, "Vespertino": df_rop['Promedio'].mean(), "Cocina": (df_serv[c_uni].mean() + df_serv[c_bas].mean()) / 2, "Lavandería": (df_serv[c_lav_r].mean() + df_serv[c_lav_j].mean()) / 2, "Limpieza": df_serv[c_lim].mean()}
             kpi = {k: (v if pd.notna(v) else 0) for k, v in kpi.items()}
-            ico = sum(kpi.values()) / len(kpi)
+            ico = sum(kpi.values()) / len(kpi) if kpi else 0
             
             df_a = pd.DataFrame.from_dict(kpi, orient='index', columns=['V']).sort_values('V', ascending=False).reset_index()
             df_c = pd.DataFrame.from_dict({"Uniforme": df_serv[c_uni].mean(), "Basura": df_serv[c_bas].mean(), "Ropa": df_serv[c_lav_r].mean(), "Jabon": df_serv[c_lav_j].mean(), "Zonas": df_serv[c_lim].mean(), "5S Roperos": df_rop[c_5s].mean(), "Tendido Camas": df_rop[c_cam].mean(), "Rondines Noct": v_noc}, orient='index', columns=['V']).sort_values('V', ascending=True).reset_index()
 
             personal_diurno = set(df_rop[col_enf].dropna().unique()) - set(ENFERMERAS_NOCHE)
             ranking_data = [{"Colaborador": e, "Turno": "Nocturno", "Puntaje (%)": round(p_noc.get(e,0),1)} for e in ENFERMERAS_NOCHE if p_noc.get(e) is not None] + [{"Colaborador": e, "Turno": "Vespertino", "Puntaje (%)": round(df_rop[df_rop[col_enf]==e]['Promedio'].mean(),1)} for e in personal_diurno if pd.notna(df_rop[df_rop[col_enf]==e]['Promedio'].mean())]
-            df_ranking = pd.DataFrame(ranking_data).sort_values("Puntaje (%)", ascending=False).reset_index(drop=True)
+            df_ranking = pd.DataFrame(ranking_data)
+            if not df_ranking.empty: df_ranking = df_ranking.sort_values("Puntaje (%)", ascending=False).reset_index(drop=True)
 
         except Exception as e:
             st.error(f"Error procesando operaciones: {e}")
-            ico = 0
 
         st.markdown(f"""<div class='exec-header'>
             <div><p style='margin:0; font-weight:700; color:#64748b; font-size:12px; text-transform:uppercase;'>Estatus Institucional</p>
@@ -639,47 +655,55 @@ def main():
                 pdf_b = generar_pdf_dashboard_op(ico, "ESTABLE" if ico >= 90 else "ATENCIÓN REQUERIDA", df_a, df_c, df_evol_base, f"{fecha_inicio.strftime('%d/%m/%Y')} al {fecha_fin.strftime('%d/%m/%Y')}")
                 st.download_button("Descargar Archivo", data=pdf_b, file_name="Reporte_Operaciones.pdf", mime="application/pdf")
             
-            cols = st.columns(5)
-            for i, (a, v) in enumerate(kpi.items()):
-                color, flecha = (HEX_GREEN, '↑') if v >= 90 else (HEX_RED, '↓')
-                with cols[i]: st.markdown(f"<div class='kpi-card'><p class='metric-label'>{a}</p><p class='metric-value' style='color:{color};'>{v:.1f}% {flecha}</p></div>", unsafe_allow_html=True)
+            if kpi:
+                cols = st.columns(5)
+                for i, (a, v) in enumerate(kpi.items()):
+                    color, flecha = (HEX_GREEN, '↑') if v >= 90 else (HEX_RED, '↓')
+                    with cols[i]: st.markdown(f"<div class='kpi-card'><p class='metric-label'>{a}</p><p class='metric-value' style='color:{color};'>{v:.1f}% {flecha}</p></div>", unsafe_allow_html=True)
+            
             st.divider()
             c1, c2 = st.columns(2)
             with c1:
                 st.write("### Pareto por Área")
-                fig = px.bar(df_a, x='index', y='V', text_auto='.1f', color_discrete_sequence=[HEX_NAVY])
-                fig.add_hline(y=90, line_dash="dash", line_color="red")
-                st.plotly_chart(fig, use_container_width=True)
+                if not df_a.empty:
+                    fig = px.bar(df_a, x='index', y='V', text_auto='.1f', color_discrete_sequence=[HEX_NAVY])
+                    fig.add_hline(y=90, line_dash="dash", line_color="red")
+                    st.plotly_chart(fig, use_container_width=True)
             with c2:
                 st.write("### Análisis de Causa Raíz")
-                fig_c = px.bar(df_c, x='V', y='index', orientation='h', text_auto='.1f', color_discrete_sequence=[HEX_RED])
-                fig_c.add_vline(x=90, line_dash="dash", line_color="black")
-                st.plotly_chart(fig_c, use_container_width=True)
+                if not df_c.empty:
+                    fig_c = px.bar(df_c, x='V', y='index', orientation='h', text_auto='.1f', color_discrete_sequence=[HEX_RED])
+                    fig_c.add_vline(x=90, line_dash="dash", line_color="black")
+                    st.plotly_chart(fig_c, use_container_width=True)
 
         with tabs_op[1]:
             st.write("### Evolución Histórica de Todos los Departamentos")
             agrupacion = st.radio("Seleccionar Agrupación Temporal:", ["Día", "Semana", "Mes", "Año"], horizontal=True)
             
-            if agrupacion == "Semana":
-                df_plot = df_evol_base.resample('W-MON').mean()
-                df_plot.index = df_plot.index.strftime('Semana %W - %Y')
-            elif agrupacion == "Mes":
-                df_plot = df_evol_base.resample('ME').mean()
-                df_plot.index = df_plot.index.strftime('%Y-%m')
-            elif agrupacion == "Año":
-                df_plot = df_evol_base.resample('YE').mean()
-                df_plot.index = df_plot.index.strftime('%Y')
-            else:
-                df_plot = df_evol_base.copy()
-                df_plot.index = df_plot.index.strftime('%Y-%m-%d')
+            if not df_evol_base.empty:
+                if agrupacion == "Semana":
+                    df_plot = df_evol_base.resample('W-MON').mean()
+                    df_plot.index = df_plot.index.strftime('Semana %W - %Y')
+                elif agrupacion == "Mes":
+                    df_plot = df_evol_base.resample('ME').mean()
+                    df_plot.index = df_plot.index.strftime('%Y-%m')
+                elif agrupacion == "Año":
+                    df_plot = df_evol_base.resample('YE').mean()
+                    df_plot.index = df_plot.index.strftime('%Y')
+                else:
+                    df_plot = df_evol_base.copy()
+                    df_plot.index = df_plot.index.strftime('%Y-%m-%d')
 
-            fig_evol = px.line(df_plot, labels={"value": "Cumplimiento (%)", "index": "Periodo", "variable": "Área Operativa"}, markers=True)
-            fig_evol.add_hline(y=90, line_dash="dot", line_color="red", annotation_text="Línea Base 90%")
-            st.plotly_chart(fig_evol, use_container_width=True)
+                fig_evol = px.line(df_plot, labels={"value": "Cumplimiento (%)", "index": "Periodo", "variable": "Área Operativa"}, markers=True)
+                fig_evol.add_hline(y=90, line_dash="dot", line_color="red", annotation_text="Línea Base 90%")
+                st.plotly_chart(fig_evol, use_container_width=True)
+            else:
+                st.info("No hay datos suficientes para mostrar la evolución temporal.")
 
         with tabs_op[2]:
             st.write("### Rendimiento Detallado por Personal")
-            st.dataframe(df_ranking, use_container_width=True)
+            if not df_ranking.empty: st.dataframe(df_ranking, use_container_width=True)
+            else: st.info("No hay datos de rendimiento individual para este periodo.")
 
         with tabs_op[3]:
             st.write("### Auditoría y Blindaje Institucional")
