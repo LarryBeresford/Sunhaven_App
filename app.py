@@ -32,7 +32,7 @@ st.markdown("""
     .exec-header { background-color: #ffffff; padding: 2rem; border-radius: 4px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; }
     .kpi-card { background-color: #ffffff; padding: 25px; border-radius: 4px; border: 1px solid #e2e8f0; text-align: center; }
     .metric-label { font-size: 12px; color: #64748b; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
-    .metric-value { font-size: 34px; font-weight: 800; color: #0f172a; margin: 0; }
+    .metric-value { font-size: 34px; font-weight: 800; margin: 0; }
     .footer-watermark { text-align: center; margin-top: 80px; opacity: 0.3; font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; }
     .stTabs [data-baseweb="tab-list"] { gap: 10px; }
     .stTabs [data-baseweb="tab"] { height: 45px; background-color: #f1f5f9; border-radius: 4px; padding: 10px 20px; font-weight: 600; color: #475569; }
@@ -163,15 +163,14 @@ class SunhavenPDF(FPDF):
 # ==========================================
 # 2. GENERADORES DE PDF POR MÓDULO
 # ==========================================
-def generar_pdf_dashboard_op(ico, estatus, areas_kpi, df_c, fecha_str):
+def generar_pdf_dashboard_op(ico, estatus, df_a, df_c, df_evol, fecha_str):
     temp_dir = os.path.join(os.path.dirname(__file__), f'temp_img_{uuid.uuid4().hex}')
     os.makedirs(temp_dir, exist_ok=True)
     
     plt.figure(figsize=(7, 4))
-    df_a = pd.DataFrame.from_dict(areas_kpi, orient='index', columns=['V']).sort_values('V', ascending=False).reset_index()
     plt.bar(df_a['index'], df_a['V'], color=HEX_NAVY)
     plt.axhline(90, color='red', linestyle='--')
-    plt.title('Pareto por Área', fontsize=10, fontweight='bold')
+    plt.title('Pareto por Área Operativa', fontsize=10, fontweight='bold')
     plt.tight_layout()
     p_pareto = os.path.join(temp_dir, 'pareto_op.png')
     plt.savefig(p_pareto)
@@ -185,6 +184,17 @@ def generar_pdf_dashboard_op(ico, estatus, areas_kpi, df_c, fecha_str):
     plt.tight_layout()
     p_causa = os.path.join(temp_dir, 'causa_op.png')
     plt.savefig(p_causa)
+    plt.close()
+    
+    plt.figure(figsize=(9, 4))
+    for col in df_evol.columns:
+        plt.plot(df_evol.index, df_evol[col], marker='o', label=col)
+    plt.axhline(90, color='red', linestyle='--')
+    plt.title('Evolución Histórica', fontsize=10, fontweight='bold')
+    plt.legend(loc='lower center', bbox_to_anchor=(0.5, -0.3), ncol=5)
+    plt.tight_layout()
+    p_evol = os.path.join(temp_dir, 'evol_op.png')
+    plt.savefig(p_evol)
     plt.close()
 
     pdf = SunhavenPDF()
@@ -204,6 +214,18 @@ def generar_pdf_dashboard_op(ico, estatus, areas_kpi, df_c, fecha_str):
     pdf.cell(0, 8, sanitizar_texto(f"Dictamen del Sistema: {estatus}"), 0, 1)
     pdf.ln(5)
     
+    areas_bajas = df_a[df_a['V'] < 90].sort_values('V', ascending=True)
+    pdf.set_font('Helvetica', 'B', 10)
+    pdf.set_text_color(*C_SUN)
+    if not areas_bajas.empty:
+        pdf.multi_cell(0, 6, sanitizar_texto("DICTAMEN: Las siguientes áreas presentan un desempeño inferior al 90% y requieren atención por orden de prioridad:"))
+        pdf.set_font('Helvetica', '', 10)
+        for _, r in areas_bajas.iterrows():
+            pdf.cell(0, 6, sanitizar_texto(f"  - {r['index']}: {r['V']:.1f}%"), 0, 1)
+    else:
+        pdf.multi_cell(0, 6, sanitizar_texto("DICTAMEN: Todas las áreas operan de manera óptima por encima de la línea base del 90%."))
+    pdf.ln(5)
+
     pdf.set_font('Helvetica', 'B', 14)
     pdf.set_text_color(*C_NAVY)
     pdf.cell(0, 8, sanitizar_texto("2. DESEMPEÑO POR DEPARTAMENTO"), 0, 1, 'L')
@@ -211,11 +233,34 @@ def generar_pdf_dashboard_op(ico, estatus, areas_kpi, df_c, fecha_str):
     pdf.image(p_pareto, x=30, w=150)
     pdf.ln(80)
     
+    pdf.add_page()
     pdf.set_font('Helvetica', 'B', 14)
     pdf.set_text_color(*C_NAVY)
     pdf.cell(0, 8, sanitizar_texto("3. ANÁLISIS DE CAUSA RAÍZ"), 0, 1, 'L')
     pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(3)
+
+    causas_bajas = df_c[df_c['V'] < 90].sort_values('V', ascending=True)
+    pdf.set_font('Helvetica', 'B', 10)
+    pdf.set_text_color(*C_SUN)
+    if not causas_bajas.empty:
+        pdf.multi_cell(0, 6, sanitizar_texto("DICTAMEN: Para estabilizar el ICO, se debe atender prioritariamente la corrección de los siguientes criterios (Por debajo del 90%):"))
+        pdf.set_font('Helvetica', '', 10)
+        for _, r in causas_bajas.iterrows():
+            pdf.cell(0, 6, sanitizar_texto(f"  - {r['index']}: {r['V']:.1f}%"), 0, 1)
+    else:
+        pdf.multi_cell(0, 6, sanitizar_texto("DICTAMEN: No se detectan criterios críticos en este periodo."))
+    
     pdf.image(p_causa, x=30, w=150)
+    pdf.ln(80)
+    
+    pdf.add_page()
+    pdf.set_font('Helvetica', 'B', 14)
+    pdf.set_text_color(*C_NAVY)
+    pdf.cell(0, 8, sanitizar_texto("4. EVOLUCIÓN HISTÓRICA (TENDENCIA)"), 0, 1, 'L')
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(5)
+    pdf.image(p_evol, x=15, w=180)
     
     shutil.rmtree(temp_dir, ignore_errors=True)
     return pdf.output(dest='S').encode('latin-1', 'replace')
@@ -371,8 +416,9 @@ def generar_pdf_legal_bytes(categorias_dict, checks_dict, porcentaje):
             estado = checks_dict.get(req, False)
             pdf.set_fill_color(*C_LIGHT) if fill_row else pdf.set_fill_color(255, 255, 255)
             pdf.set_text_color(*C_DARK)
-            pdf.set_font('Helvetica', '', 8)
-            pdf.cell(150, 7, sanitizar_texto(f"   - {req}"[:87] + ("..." if len(req) > 85 else "")), 1, 0, 'L', fill_row)
+            pdf.set_font('Helvetica', '', 7.5)
+            req_texto = sanitizar_texto(f"   - {req}"[:115] + ("..." if len(req) > 112 else ""))
+            pdf.cell(150, 7, req_texto, 1, 0, 'L', fill_row)
             pdf.set_text_color(39, 174, 96) if estado else pdf.set_text_color(231, 76, 60)
             pdf.set_font('Helvetica', 'B', 8)
             pdf.cell(40, 7, sanitizar_texto("CUMPLE" if estado else "PENDIENTE"), 1, 1, 'C', fill_row)
@@ -489,14 +535,12 @@ def procesar_super_nomina(df_bio, df_bitacora, df_kaizen, mes_num, anio_num):
 # 4. APLICACIÓN PRINCIPAL (ENRUTADOR)
 # ==========================================
 def main():
-    # --- SIDEBAR LIMPIA Y DINÁMICA ---
     with st.sidebar:
         st.markdown("### NAVEGADOR EMPRESARIAL")
         modulo_activo = st.radio("Seleccione el Módulo:", ["Dashboard de Operaciones", "Gestión de Nómina", "Turno Nocturno"], label_visibility="collapsed")
         st.divider()
         st.markdown("### FILTROS")
         
-        # Filtros Dinámicos
         fecha_inicio, fecha_fin, mes_eval, anio_eval, file_asis = None, None, None, None, None
         
         if modulo_activo in ["Dashboard de Operaciones", "Turno Nocturno"]:
@@ -518,7 +562,7 @@ def main():
     # MÓDULO 1: DASHBOARD OPERATIVO
     # ---------------------------------------------------------
     if modulo_activo == "Dashboard de Operaciones":
-        st.title("Dashboard de Operaciones e Infraestructura")
+        st.title("Dashboard de Operaciones")
         data = cargar_datos_operaciones()
         if data is None: st.stop()
         df_ron, df_rop, df_serv = data["n"].copy(), data["v"].copy(), data["s"].copy()
@@ -547,14 +591,40 @@ def main():
             df_ron['Hora'] = df_ron['Marca temporal'].dt.hour
             df_ron['Bloque'] = df_ron['Hora'].apply(lambda h: "B1" if 21<=h<=23 else "B2" if 0<=h<=3 else "B3" if 4<=h<=6 else None)
             
+            rango_fechas = pd.date_range(fecha_inicio, fecha_fin)
+            df_ron_val = df_ron[df_ron['Bloque'].notnull()].drop_duplicates(subset=['Fecha', 'Enfermera', 'Bloque'])
+            conteo_noc = df_ron_val.groupby('Fecha').size()
+            noc_diario = []
+            for d in rango_fechas:
+                exp = (len(ENFERMERAS_ROL_A)*3) if d.weekday() in [0,2,4] else (len(ENFERMERAS_ROL_B)*3 if d.weekday() in [1,3,5] else 0)
+                noc_diario.append(min((conteo_noc.get(d.date(), 0)/exp)*100, 100) if exp>0 else None)
+                
+            df_evol_base = pd.DataFrame(index=rango_fechas.date)
+            df_evol_base['Nocturno'] = noc_diario
+            df_evol_base['Vespertino'] = df_evol_base.index.map(df_rop.groupby('Fecha')['Promedio'].mean())
+            df_evol_base['Cocina'] = df_evol_base.index.map(df_serv.groupby('Fecha')[[c_uni, c_bas]].mean().mean(axis=1))
+            df_evol_base['Lavandería'] = df_evol_base.index.map(df_serv.groupby('Fecha')[[c_lav_r, c_lav_j]].mean().mean(axis=1))
+            df_evol_base['Limpieza'] = df_evol_base.index.map(df_serv.groupby('Fecha')[c_lim].mean())
+            df_evol_base = df_evol_base.ffill().bfill().fillna(0)
+            df_evol_base.index = pd.to_datetime(df_evol_base.index)
+
             p_noc = {enf: min((len(df_ron[(df_ron['Enfermera'] == enf) & (df_ron['Bloque'].notnull())][['Fecha', 'Bloque']].drop_duplicates()) / ((t_A if enf in ENFERMERAS_ROL_A else t_B)*3) * 100), 100) if ((t_A if enf in ENFERMERAS_ROL_A else t_B)*3) > 0 else 100 for enf in ENFERMERAS_NOCHE}
             v_noc = sum(p_noc.values()) / len(p_noc) if p_noc else 0
 
             kpi = {"Nocturno": v_noc, "Vespertino": df_rop['Promedio'].mean(), "Cocina": (df_serv[c_uni].mean() + df_serv[c_bas].mean()) / 2, "Lavandería": (df_serv[c_lav_r].mean() + df_serv[c_lav_j].mean()) / 2, "Limpieza": df_serv[c_lim].mean()}
             kpi = {k: (v if pd.notna(v) else 0) for k, v in kpi.items()}
             ico = sum(kpi.values()) / len(kpi)
+            
+            df_a = pd.DataFrame.from_dict(kpi, orient='index', columns=['V']).sort_values('V', ascending=False).reset_index()
             df_c = pd.DataFrame.from_dict({"Uniforme": df_serv[c_uni].mean(), "Basura": df_serv[c_bas].mean(), "Ropa": df_serv[c_lav_r].mean(), "Jabon": df_serv[c_lav_j].mean(), "Zonas": df_serv[c_lim].mean(), "5S Roperos": df_rop[c_5s].mean(), "Tendido Camas": df_rop[c_cam].mean(), "Rondines Noct": v_noc}, orient='index', columns=['V']).sort_values('V', ascending=True).reset_index()
-        except: ico = 0
+
+            personal_diurno = set(df_rop[col_enf].dropna().unique()) - set(ENFERMERAS_NOCHE)
+            ranking_data = [{"Colaborador": e, "Turno": "Nocturno", "Puntaje (%)": round(p_noc.get(e,0),1)} for e in ENFERMERAS_NOCHE if p_noc.get(e) is not None] + [{"Colaborador": e, "Turno": "Vespertino", "Puntaje (%)": round(df_rop[df_rop[col_enf]==e]['Promedio'].mean(),1)} for e in personal_diurno if pd.notna(df_rop[df_rop[col_enf]==e]['Promedio'].mean())]
+            df_ranking = pd.DataFrame(ranking_data).sort_values("Puntaje (%)", ascending=False).reset_index(drop=True)
+
+        except Exception as e:
+            st.error(f"Error procesando operaciones: {e}")
+            ico = 0
 
         st.markdown(f"""<div class='exec-header'>
             <div><p style='margin:0; font-weight:700; color:#64748b; font-size:12px; text-transform:uppercase;'>Estatus Institucional</p>
@@ -562,21 +632,22 @@ def main():
             <div style='text-align:right;'><p style='margin:0; font-weight:700; color:#64748b; font-size:12px; text-transform:uppercase;'>ICO Maestro</p>
             <h1 style='margin:0; font-size:48px;'>{ico:.1f}%</h1></div></div>""", unsafe_allow_html=True)
 
-        tabs_op = st.tabs(["Tablero de Control", "Blindaje Legal"])
+        tabs_op = st.tabs(["Tablero de Control", "Evolución Temporal", "Rendimiento Individual", "Blindaje Legal", "Data Cruda"])
+        
         with tabs_op[0]:
-            btn_pdf = st.button("Generar Reporte de Operaciones (PDF)", type="primary")
-            if btn_pdf:
-                pdf_b = generar_pdf_dashboard_op(ico, "ESTABLE" if ico >= 90 else "ATENCIÓN REQUERIDA", kpi, df_c, f"{fecha_inicio.strftime('%d/%m/%Y')} al {fecha_fin.strftime('%d/%m/%Y')}")
+            if st.button("Generar Reporte de Operaciones (PDF)", type="primary"):
+                pdf_b = generar_pdf_dashboard_op(ico, "ESTABLE" if ico >= 90 else "ATENCIÓN REQUERIDA", df_a, df_c, df_evol_base, f"{fecha_inicio.strftime('%d/%m/%Y')} al {fecha_fin.strftime('%d/%m/%Y')}")
                 st.download_button("Descargar Archivo", data=pdf_b, file_name="Reporte_Operaciones.pdf", mime="application/pdf")
             
             cols = st.columns(5)
             for i, (a, v) in enumerate(kpi.items()):
-                with cols[i]: st.markdown(f"<div class='kpi-card'><p class='metric-label'>{a}</p><p class='metric-value'>{v:.1f}%</p></div>", unsafe_allow_html=True)
+                color, flecha = (HEX_GREEN, '↑') if v >= 90 else (HEX_RED, '↓')
+                with cols[i]: st.markdown(f"<div class='kpi-card'><p class='metric-label'>{a}</p><p class='metric-value' style='color:{color};'>{v:.1f}% {flecha}</p></div>", unsafe_allow_html=True)
             st.divider()
             c1, c2 = st.columns(2)
             with c1:
                 st.write("### Pareto por Área")
-                fig = px.bar(pd.DataFrame.from_dict(kpi, orient='index', columns=['V']).sort_values('V', ascending=False).reset_index(), x='index', y='V', text_auto='.1f', color_discrete_sequence=[HEX_NAVY])
+                fig = px.bar(df_a, x='index', y='V', text_auto='.1f', color_discrete_sequence=[HEX_NAVY])
                 fig.add_hline(y=90, line_dash="dash", line_color="red")
                 st.plotly_chart(fig, use_container_width=True)
             with c2:
@@ -586,12 +657,64 @@ def main():
                 st.plotly_chart(fig_c, use_container_width=True)
 
         with tabs_op[1]:
+            st.write("### Evolución Histórica de Todos los Departamentos")
+            agrupacion = st.radio("Seleccionar Agrupación Temporal:", ["Día", "Semana", "Mes", "Año"], horizontal=True)
+            
+            if agrupacion == "Semana":
+                df_plot = df_evol_base.resample('W-MON').mean()
+                df_plot.index = df_plot.index.strftime('Semana %W - %Y')
+            elif agrupacion == "Mes":
+                df_plot = df_evol_base.resample('ME').mean()
+                df_plot.index = df_plot.index.strftime('%Y-%m')
+            elif agrupacion == "Año":
+                df_plot = df_evol_base.resample('YE').mean()
+                df_plot.index = df_plot.index.strftime('%Y')
+            else:
+                df_plot = df_evol_base.copy()
+                df_plot.index = df_plot.index.strftime('%Y-%m-%d')
+
+            fig_evol = px.line(df_plot, labels={"value": "Cumplimiento (%)", "index": "Periodo", "variable": "Área Operativa"}, markers=True)
+            fig_evol.add_hline(y=90, line_dash="dot", line_color="red", annotation_text="Línea Base 90%")
+            st.plotly_chart(fig_evol, use_container_width=True)
+
+        with tabs_op[2]:
+            st.write("### Rendimiento Detallado por Personal")
+            st.dataframe(df_ranking, use_container_width=True)
+
+        with tabs_op[3]:
             st.write("### Auditoría y Blindaje Institucional")
             cats = {
-                "COPRISJAL": ["Aviso de Funcionamiento", "Aviso de Botiquín", "NOM-031-SSA3", "NOM-004-SSA3", "NOM-087-SEMARNAT", "NOM-045 y NOM-251", "Fumigación"],
-                "STPS": ["RIT depositado", "NOM-035-STPS", "NOM-019-STPS", "NOM-036-STPS", "NOM-030-STPS", "DC-3 emitidas"],
-                "Protección Civil": ["PIPC", "Póliza RC", "Dictámenes Estructurales", "Extintores/Señalética", "Brigadas/Simulacros", "Trampas grasa", "Licencia Municipal"],
-                "Legal y Privacidad": ["Aviso de Privacidad", "Consentimiento Sensibles", "Contratos PROFECO", "Registro Asistencia Social", "Contratos Confidencialidad"]
+                "REGULACIÓN SANITARIA Y OPERATIVA - COPRISJAL/SSA": [
+                    "[CRÍTICO - Anual] Aviso de Funcionamiento: Verificar documento vigente y exhibido.",
+                    "[CRÍTICO - Anual] Responsable Sanitario: Validar aviso y nombramiento registrado.",
+                    "[CRÍTICO - Diario] Medicamentos controlados: Verificar resguardo y control foliado.",
+                    "[ALTO - Mensual] Accesibilidad NOM-031: Verificar rampas y barandales.",
+                    "[CRÍTICO - Mensual] Expedientes clínicos: Validar integración y resguardo.",
+                    "[CRÍTICO - Semanal] Manejo RPBI: Verificar contenedores y bolsas.",
+                    "[ALTO - Diario] Higiene alimentaria: Control de temperaturas y limpieza en cocina."
+                ],
+                "SEGURIDAD Y SALUD LABORAL - STPS": [
+                    "[ALTO - Anual] RIT: Verificar Reglamento Interior de Trabajo firmado.",
+                    "[ALTO - Anual] NOM-035: Aplicar guía preventiva de riesgos psicosociales.",
+                    "[ALTO - Trimestral] Comisión Mixta: Validar actas y recorridos de seguridad.",
+                    "[ALTO - Semestral] Ergonomía (Movilización pacientes): Verificar capacitación y DC-3."
+                ],
+                "PROTECCIÓN CIVIL Y ECOLOGÍA MUNICIPAL": [
+                    "[CRÍTICO - Anual] Programa Interno PIPC: Validar autorización vigente.",
+                    "[CRÍTICO - Anual] Responsabilidad Civil: Verificar póliza de seguro vigente.",
+                    "[CRÍTICO - Anual] Dictamen estructural: Validar dictamen DRO.",
+                    "[CRÍTICO - Mensual] Extintores: Revisar vigencia, señalización y recarga.",
+                    "[CRÍTICO - Mensual] Detectores de humo: Validar funcionamiento.",
+                    "[ALTO - Mensual] Evacuación: Verificar rutas, luces y señalética.",
+                    "[ALTO - Anual] Brigadas: Validar constancias de capacitación (DC-3).",
+                    "[CRÍTICO - Semestral] Simulacros: Revisar bitácoras y formatos de evacuación."
+                ],
+                "CUMPLIMIENTO LEGAL Y PRIVACIDAD": [
+                    "[ALTO - Permanente] Aviso de privacidad INAI: Verificar exhibición y anexos.",
+                    "[CRÍTICO - Permanente] Datos sensibles: Confirmar consentimientos en expedientes.",
+                    "[ALTO - Permanente] Contratos de servicios: Verificar contratos firmados y vigentes.",
+                    "[ALTO - Anual] Contrato adhesión PROFECO: Confirmar registro vigente."
+                ]
             }
             if 'checks' not in st.session_state: st.session_state.checks = {i: False for sub in cats.values() for i in sub}
             c_l1, c_l2 = st.columns([0.7, 0.3])
@@ -604,7 +727,14 @@ def main():
                 st.write(f"#### Índice: {int(pct)}%")
                 st.progress(pct / 100)
                 if st.button("Generar Reporte Legal"): st.session_state['pl'] = generar_pdf_legal_bytes(cats, st.session_state.checks, pct)
-                if 'pl' in st.session_state: st.download_button("Descargar", data=st.session_state['pl'], file_name="Legal.pdf", mime="application/pdf")
+                if 'pl' in st.session_state: st.download_button("Descargar Auditoría PDF", data=st.session_state['pl'], file_name=f"Legal_{datetime.now().strftime('%d%m%Y')}.pdf", mime="application/pdf")
+
+        with tabs_op[4]:
+            st.write("### Tuberías de Datos Operativas (Data Cruda)")
+            sub1, sub2, sub3 = st.tabs(["Servicios Generales", "Enfermería Vespertina", "Rondines Nocturnos"])
+            with sub1: st.dataframe(df_serv, use_container_width=True)
+            with sub2: st.dataframe(df_rop, use_container_width=True)
+            with sub3: st.dataframe(df_ron, use_container_width=True)
 
     # ---------------------------------------------------------
     # MÓDULO 2: GESTIÓN DE NÓMINA
@@ -612,7 +742,7 @@ def main():
     elif modulo_activo == "Gestión de Nómina":
         st.title("Gestión de Nómina y Mejora Continua")
         df_bitacora = cargar_bitacora()
-        tabs_nom = st.tabs(["Dictamen de Nómina", "Bitácora Digital"])
+        tabs_nom = st.tabs(["Dictamen de Nómina", "Bitácora Digital", "Data Cruda"])
 
         with tabs_nom[1]:
             st.write("### Registro Manual de Supervisión")
@@ -644,6 +774,12 @@ def main():
                 st.download_button("Descargar Reporte de Nómina (PDF)", data=pdf_b, file_name=f"Nomina_{m_str.replace('/','_')}.pdf", mime="application/pdf")
                 st.dataframe(df_n, use_container_width=True, hide_index=True)
 
+        with tabs_nom[2]:
+            if 'nom' in st.session_state:
+                sub1, sub2 = st.tabs(["Retardos Biométricos", "Propuestas Kaizen"])
+                with sub1: st.dataframe(st.session_state['nom'][2], use_container_width=True)
+                with sub2: st.dataframe(fetch_kaizen_data(), use_container_width=True)
+
     # ---------------------------------------------------------
     # MÓDULO 3: TURNO NOCTURNO
     # ---------------------------------------------------------
@@ -657,7 +793,6 @@ def main():
         df_ron['Fecha'] = df_ron['Marca temporal'].dt.date
         df_ron = df_ron[(df_ron['Fecha'] >= fecha_inicio) & (df_ron['Fecha'] <= fecha_fin)]
 
-        # Lógica exacta de Auditor Rondines (Excluye domingos)
         t_A = sum(1 for d in pd.date_range(fecha_inicio, fecha_fin) if d.weekday() in [0, 2, 4] and d.weekday() != 6)
         t_B = sum(1 for d in pd.date_range(fecha_inicio, fecha_fin) if d.weekday() in [1, 3, 5] and d.weekday() != 6)
         
@@ -665,7 +800,6 @@ def main():
         df_ron['Bloque'] = df_ron['Hora'].apply(lambda h: "B1" if 21<=h<=23 else "B2" if 0<=h<=3 else "B3" if 4<=h<=6 else None)
         df_valido = df_ron[df_ron['Bloque'].notnull()].drop_duplicates(subset=['Fecha', 'Enfermera', 'Bloque'])
 
-        # Auditoría Antifraude
         df_ron_sort = df_ron.sort_values(by=['Enfermera', 'Marca temporal'])
         df_ron_sort['Diff'] = df_ron_sort.groupby('Enfermera')['Marca temporal'].diff().dt.total_seconds()
         alertas = len(df_ron_sort[df_ron_sort['Diff'] < 60])
