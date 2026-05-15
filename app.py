@@ -29,11 +29,14 @@ st.markdown("""
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     .block-container { padding-top: 1.5rem; max-width: 95%; }
     h1, h2, h3 { color: #1e293b; font-weight: 800; letter-spacing: -0.5px; }
-    .exec-header { background-color: #ffffff; padding: 2rem; border-radius: 4px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; }
+    .exec-header { background-color: #ffffff; padding: 2rem; border-radius: 4px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; }
     .kpi-card { background-color: #ffffff; padding: 25px; border-radius: 4px; border: 1px solid #e2e8f0; text-align: center; }
     .metric-label { font-size: 12px; color: #64748b; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
     .metric-value { font-size: 34px; font-weight: 800; margin: 0; }
     .footer-watermark { text-align: center; margin-top: 80px; opacity: 0.3; font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; }
+    .dictamen-box { background-color: #f8fafc; border-left: 6px solid #d35400; padding: 15px; border-radius: 4px; margin-bottom: 2rem; border-top: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;}
+    .dictamen-title { margin-top: 0; color: #1e293b; font-size: 13px; text-transform: uppercase; font-weight: 800; margin-bottom: 8px;}
+    .dictamen-text { margin: 0; color: #334155; font-size: 14px; line-height: 1.5;}
     .stTabs [data-baseweb="tab-list"] { gap: 10px; }
     .stTabs [data-baseweb="tab"] { height: 45px; background-color: #f1f5f9; border-radius: 4px; padding: 10px 20px; font-weight: 600; color: #475569; }
     .stTabs [aria-selected="true"] { background-color: #1e293b !important; color: white !important; }
@@ -161,9 +164,48 @@ class SunhavenPDF(FPDF):
         self.cell(0, 6, sanitizar_texto('Ing. Larry Beresford'), 0, 1, 'C')
 
 # ==========================================
-# 2. GENERADORES DE PDF POR MÓDULO
+# 2. MOTOR DE DIAGNÓSTICO EJECUTIVO (EL "CEREBRO")
 # ==========================================
-def generar_pdf_dashboard_op(ico, estatus, df_a, df_c, df_evol, fecha_str):
+def generar_dictamen_operativo(ico, df_a, df_c):
+    """Genera recomendaciones automáticas basadas en los datos duros."""
+    if df_a.empty or df_c.empty:
+        return "No hay datos suficientes para generar un dictamen.", "No hay datos suficientes para generar un dictamen."
+
+    # Ordenar para encontrar a los "culpables"
+    areas_bajas = df_a[df_a['V'] < 90].sort_values('V', ascending=True)
+    causas_bajas = df_c[df_c['V'] < 90].sort_values('V', ascending=True)
+
+    if ico >= 90:
+        html = "[ ESTADO ESTABLE ] Todas las áreas superan la línea base del 90%. Se recomienda mantener los protocolos de supervisión actuales."
+        pdf_text = "El ecosistema operativo se encuentra en estado ESTABLE. Todas las métricas superan la línea base del 90%. Se recomienda mantener los protocolos de supervisión actuales y extender un reconocimiento al equipo."
+    elif ico >= 80:
+        peor_area = areas_bajas.iloc[0]['index'] if not areas_bajas.empty else "N/A"
+        peor_causa = causas_bajas.iloc[0]['index'] if not causas_bajas.empty else "N/A"
+        
+        html = f"<strong>[ ALERTA PREVENTIVA ]</strong> El rendimiento general está decayendo.<br><br>1. <strong>Foco Primario:</strong> El departamento de '{peor_area}' muestra debilidad operativa.<br>2. <strong>Causa Principal:</strong> El criterio de '{peor_causa}' necesita revisión.<br>3. <strong>Acción Sugerida:</strong> Agendar reunión de calibración con el personal del turno afectado."
+        
+        pdf_text = f"ALERTA PREVENTIVA: El rendimiento general requiere ajustes antes de volverse crítico.\n\n"
+        pdf_text += f"1. Foco Primario: El departamento de '{peor_area}' presenta las métricas más bajas.\n"
+        pdf_text += f"2. Causa Principal: El criterio de '{peor_causa}' necesita revisión operativa.\n"
+        pdf_text += "3. Acción Sugerida: Se recomienda una sesión de retroalimentación (feedback) con el personal involucrado para estandarizar procesos."
+    else:
+        peor_area = areas_bajas.iloc[0]['index'] if not areas_bajas.empty else "N/A"
+        peor_causa = causas_bajas.iloc[0]['index'] if not causas_bajas.empty else "N/A"
+        
+        html = f"<strong>[ ATENCIÓN CRÍTICA ]</strong> Existen deficiencias serias en la operación.<br><br>1. <strong>ÁREA ROJA:</strong> El departamento de '{peor_area}' requiere intervención gerencial urgente.<br>2. <strong>FALLA SISTÉMICA:</strong> El incumplimiento en '{peor_causa}' está arrastrando la calificación.<br>3. <strong>ACCIÓN OBLIGATORIA:</strong> Ejecutar plan de corrección inmediato y levantar actas administrativas si aplica."
+        
+        pdf_text = f"ATENCIÓN CRÍTICA: Se detectan deficiencias operativas que requieren intervención gerencial inmediata.\n\n"
+        pdf_text += f"1. ÁREA ROJA: El departamento de '{peor_area}' muestra un rendimiento deficiente que compromete la calidad del servicio.\n"
+        pdf_text += f"2. FALLA SISTÉMICA: El incumplimiento en el criterio de '{peor_causa}' es la principal causa del rezago.\n"
+        pdf_text += "3. ACCIÓN OBLIGATORIA: Implementar un plan de choque esta semana. Se sugiere mayor presencia de supervisión física y el levantamiento de reportes/actas si se comprueba negligencia."
+
+    return html, pdf_text
+
+
+# ==========================================
+# 3. GENERADORES DE PDF POR MÓDULO
+# ==========================================
+def generar_pdf_dashboard_op(ico, estatus, df_a, df_c, df_evol, agrupacion, fecha_str, pdf_dictamen):
     temp_dir = os.path.join(os.path.dirname(__file__), f'temp_img_{uuid.uuid4().hex}')
     os.makedirs(temp_dir, exist_ok=True)
     
@@ -187,12 +229,13 @@ def generar_pdf_dashboard_op(ico, estatus, df_a, df_c, df_evol, fecha_str):
     plt.close()
     
     plt.figure(figsize=(9, 4))
-    for col in df_evol.columns:
-        plt.plot(df_evol.index, df_evol[col], marker='o', label=col)
-    plt.axhline(90, color='red', linestyle='--')
-    plt.title('Evolución Histórica (Tendencia Sincronizada)', fontsize=10, fontweight='bold')
-    plt.xticks(rotation=45, ha='right', fontsize=8)
-    plt.legend(loc='lower center', bbox_to_anchor=(0.5, -0.4), ncol=5)
+    if not df_evol.empty:
+        for col in df_evol.columns:
+            plt.plot(df_evol.index, df_evol[col], marker='o', label=col)
+        plt.axhline(90, color='red', linestyle='--')
+        plt.title(f'Evolución Histórica Sincronizada ({agrupacion})', fontsize=10, fontweight='bold')
+        plt.xticks(rotation=45, ha='right', fontsize=8)
+        plt.legend(loc='lower center', bbox_to_anchor=(0.5, -0.4), ncol=5)
     plt.tight_layout()
     p_evol = os.path.join(temp_dir, 'evol_op.png')
     plt.savefig(p_evol)
@@ -239,24 +282,13 @@ def generar_pdf_dashboard_op(ico, estatus, df_a, df_c, df_evol, fecha_str):
     pdf.image(p_evol, x=15, w=180)
     pdf.ln(100)
     
-    # CUADRO DE CONCLUSIONES
+    # CUADRO DE CONCLUSIONES Y RECOMENDACIONES
     pdf.set_font('Helvetica', 'B', 12)
     pdf.set_fill_color(240, 245, 250)
     pdf.cell(0, 8, sanitizar_texto(" CONCLUSIONES Y RECOMENDACIONES EJECUTIVAS"), 1, 1, 'L', True)
     pdf.set_font('Helvetica', '', 10)
     pdf.set_text_color(*C_DARK)
-    
-    if ico >= 90:
-        recomendacion = "El ecosistema operativo se encuentra en estado ESTABLE. Todas las métricas superan la línea base del 90%. Se recomienda mantener los protocolos de supervisión actuales y extender un reconocimiento al equipo operativo."
-    else:
-        peor_area = df_a.iloc[-1]['index'] if not df_a.empty else "N/A"
-        peor_causa = df_c.iloc[0]['index'] if not df_c.empty else "N/A"
-        recomendacion = f"Se requiere ATENCIÓN INMEDIATA para estabilizar el ICO institucional.\n\n"
-        recomendacion += f"1. ÁREA CRÍTICA: Enfocar recursos de supervisión de manera urgente en el área de '{peor_area}'.\n"
-        recomendacion += f"2. CAUSA RAÍZ: La falla principal que arrastra la calificación hacia abajo es el criterio de '{peor_causa}'.\n"
-        recomendacion += "3. ACCIÓN: Ejecutar medidas correctivas con el personal responsable de dicho indicador durante esta misma semana."
-        
-    pdf.multi_cell(0, 6, sanitizar_texto(recomendacion), 1, 'L')
+    pdf.multi_cell(0, 6, sanitizar_texto(pdf_dictamen), 1, 'L')
 
     shutil.rmtree(temp_dir, ignore_errors=True)
     return pdf.output(dest='S').encode('latin-1', 'replace')
@@ -330,7 +362,7 @@ def generar_pdf_nomina(df_nomina, df_incidencias, df_retardos, stats_kaizen, pro
     pdf.set_font('Helvetica', '', 10)
     for emp in stats_kaizen['lista_no']: pdf.cell(0, 5, sanitizar_texto(f"  - {emp}"), 0, 1)
     
-    # CUADRO DE CONCLUSIONES KAIZEN
+    # CUADRO DE CONCLUSIONES KAIZEN Y NÓMINA
     pdf.ln(10)
     pdf.set_font('Helvetica', 'B', 12)
     pdf.set_fill_color(240, 245, 250)
@@ -343,7 +375,7 @@ def generar_pdf_nomina(df_nomina, df_incidencias, df_retardos, stats_kaizen, pro
     if pct_kz < 80:
         rec_nom += "Nivel bajo de cumplimiento. Se recomienda aplicar la deducción administrativa de inmediato a los omisos para fomentar la disciplina.\n\n"
     else:
-        rec_nom += "Nivel de participación excelente.\n\n"
+        rec_nom += "Nivel de participación excelente. Se sugiere reconocer publicamente las mejores propuestas.\n\n"
         
     if not df_retardos.empty:
         peor_emp = df_retardos['EMPLEADO'].value_counts().index[0]
@@ -423,7 +455,7 @@ def generar_pdf_rondines(df_resumen, escaneos_totales, alertas_fraude, fecha_str
     bajos = df_resumen[df_resumen['% Cumplimiento'] < 90]
     if not bajos.empty:
         nombres = ", ".join(bajos['Colaborador'].tolist())
-        rec_ron += f"DESEMPEÑO: Las siguientes enfermeras no alcanzaron la meta mínima del 90% en sus rondines: {nombres}. Se recomienda aplicar la sanción administrativa y dialogar para evitar negligencias nocturnas."
+        rec_ron += f"DESEMPEÑO: Las siguientes enfermeras no alcanzaron la meta mínima del 90% en sus rondines: {nombres}. Se recomienda aplicar sanción administrativa."
     else:
         rec_ron += "DESEMPEÑO: El equipo nocturno cumplió satisfactoriamente con la meta de rondas de seguridad establecidas."
         
@@ -666,7 +698,6 @@ def main():
             df_evol_base = df_evol_base.ffill().bfill().fillna(0)
             df_evol_base.index = pd.to_datetime(df_evol_base.index)
 
-            # Lógica de Agrupación Temporal Global (Para Pantalla y PDF)
             if not df_evol_base.empty:
                 if agrupacion_temporal == "Semana":
                     df_plot = df_evol_base.resample('W-MON').mean()
@@ -699,17 +730,28 @@ def main():
         except Exception as e:
             st.error(f"Error procesando operaciones: {e}")
 
+        # GENERACIÓN DEL DICTAMEN INTELIGENTE
+        html_dictamen, pdf_dictamen = generar_dictamen_operativo(ico, df_a, df_c)
+
         st.markdown(f"""<div class='exec-header'>
             <div><p style='margin:0; font-weight:700; color:#64748b; font-size:12px; text-transform:uppercase;'>Estatus Institucional</p>
             <h2 style='margin:0; color:{HEX_GREEN if ico >= 90 else HEX_RED};'>{"ESTABLE" if ico >= 90 else "ATENCIÓN REQUERIDA"}</h2></div>
             <div style='text-align:right;'><p style='margin:0; font-weight:700; color:#64748b; font-size:12px; text-transform:uppercase;'>ICO Maestro</p>
             <h1 style='margin:0; font-size:48px;'>{ico:.1f}%</h1></div></div>""", unsafe_allow_html=True)
 
+        # MOSTRAR EL DICTAMEN EN PANTALLA
+        st.markdown(f"""
+            <div class='dictamen-box'>
+                <h4 class='dictamen-title'>Dictamen y Recomendaciones Ejecutivas</h4>
+                <p class='dictamen-text'>{html_dictamen}</p>
+            </div>
+        """, unsafe_allow_html=True)
+
         tabs_op = st.tabs(["Tablero de Control", "Evolución Temporal", "Rendimiento Individual", "Blindaje Legal", "Data Cruda"])
         
         with tabs_op[0]:
             if st.button("Generar Reporte de Operaciones (PDF)", type="primary"):
-                pdf_b = generar_pdf_dashboard_op(ico, "ESTABLE" if ico >= 90 else "ATENCIÓN REQUERIDA", df_a, df_c, df_plot, f"{fecha_inicio.strftime('%d/%m/%Y')} al {fecha_fin.strftime('%d/%m/%Y')}")
+                pdf_b = generar_pdf_dashboard_op(ico, "ESTABLE" if ico >= 90 else "ATENCIÓN REQUERIDA", df_a, df_c, df_plot, agrupacion_temporal, f"{fecha_inicio.strftime('%d/%m/%Y')} al {fecha_fin.strftime('%d/%m/%Y')}", pdf_dictamen)
                 st.download_button("Descargar Archivo", data=pdf_b, file_name="Reporte_Operaciones.pdf", mime="application/pdf")
             
             if kpi:
@@ -836,6 +878,27 @@ def main():
                 df_n, df_i, df_r, s_k, p_k = st.session_state['nom']
                 m_str = f"{mes_eval:02d}/{anio_eval}"
                 st.markdown(f"<h1 style='color:{HEX_GREEN};'>Total a Dispersar: ${df_n['TOTAL A PAGAR'].sum():,}</h1>", unsafe_allow_html=True)
+                
+                # CUADRO DE DICTAMEN EN PANTALLA
+                t_kz = s_k['curr_si'] + s_k['curr_no']
+                pct_kz = (s_k['curr_si'] / t_kz * 100) if t_kz > 0 else 0
+                rec_nom = f"<strong>[ MEJORA CONTINUA (KAIZEN) ]</strong> El {pct_kz:.1f}% del personal entregó sus propuestas. "
+                if pct_kz < 80:
+                    rec_nom += "Nivel bajo de cumplimiento. Se recomienda aplicar la deducción administrativa de inmediato a los omisos para fomentar la disciplina.<br><br>"
+                else:
+                    rec_nom += "Nivel de participación excelente. Se sugiere reconocer publicamente las mejores propuestas.<br><br>"
+                    
+                if not df_r.empty:
+                    peor_emp = df_r['EMPLEADO'].value_counts().index[0]
+                    rec_nom += f"<strong>[ PUNTUALIDAD ]</strong> El colaborador con mayor reincidencia de retardos biométricos es '{peor_emp}'. Se recomienda citación para diálogo y acta administrativa en caso de continuar la tendencia."
+                
+                st.markdown(f"""
+                    <div class='dictamen-box'>
+                        <h4 class='dictamen-title'>Dictamen y Recomendaciones Ejecutivas</h4>
+                        <p class='dictamen-text'>{rec_nom}</p>
+                    </div>
+                """, unsafe_allow_html=True)
+
                 pdf_b = generar_pdf_nomina(df_n, df_i, df_r, s_k, p_k, m_str)
                 st.download_button("Descargar Reporte de Nómina (PDF)", data=pdf_b, file_name=f"Nomina_{m_str.replace('/','_')}.pdf", mime="application/pdf")
                 st.dataframe(df_n, use_container_width=True, hide_index=True)
@@ -887,6 +950,25 @@ def main():
             <h2 style='margin:0; color:{HEX_GREEN if v_noc >= 90 else HEX_RED};'>{"ESTABLE" if v_noc >= 90 else "ALERTA"}</h2></div>
             <div style='text-align:right;'><p style='margin:0; font-weight:700; color:#64748b; font-size:12px; text-transform:uppercase;'>Promedio Global Nocturno</p>
             <h1 style='margin:0; font-size:48px;'>{v_noc:.1f}%</h1></div></div>""", unsafe_allow_html=True)
+
+        # CUADRO DE DICTAMEN EN PANTALLA
+        rec_ron = ""
+        if alertas > 0:
+            rec_ron += f"<strong>[ ALERTA ANTIFRAUDE ]</strong> Se han detectado {alertas} escaneos realizados en menos de 60 segundos entre sí. Fuerte indicio de llenado fraudulento. Cruzar horarios con cámaras de vigilancia.<br><br>"
+        
+        bajos = df_resumen[df_resumen['% Cumplimiento'] < 90]
+        if not bajos.empty:
+            nombres = ", ".join(bajos['Colaborador'].tolist())
+            rec_ron += f"<strong>[ DESEMPEÑO INSUFICIENTE ]</strong> Las siguientes enfermeras no alcanzaron la meta mínima del 90% en sus rondines: {nombres}. Se recomienda aplicar sanción administrativa."
+        else:
+            rec_ron += "<strong>[ DESEMPEÑO ÓPTIMO ]</strong> El equipo nocturno cumplió satisfactoriamente con la meta de rondas de seguridad."
+            
+        st.markdown(f"""
+            <div class='dictamen-box'>
+                <h4 class='dictamen-title'>Dictamen y Recomendaciones Ejecutivas</h4>
+                <p class='dictamen-text'>{rec_ron}</p>
+            </div>
+        """, unsafe_allow_html=True)
 
         tabs_noc = st.tabs(["Auditoría de Rondas", "Log Antifraude"])
         with tabs_noc[0]:
