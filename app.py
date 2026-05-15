@@ -3,8 +3,6 @@ import pandas as pd
 import gspread
 import json
 import os
-import sys
-import subprocess
 import io
 from datetime import datetime, timedelta
 import plotly.express as px
@@ -19,11 +17,11 @@ import uuid
 # ==========================================
 # 0. CONFIGURACION Y SEGURIDAD GLOBAL
 # ==========================================
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PATH_CREDS = os.path.join(BASE_DIR, 'config', 'sunhaven-credentials.json')
 PATH_BITACORA = os.path.join(BASE_DIR, 'data', 'bitacora_interna.csv')
 
-st.set_page_config(page_title="Sunhaven | Intelligence Suite", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Sunhaven Intelligence Suite", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
 <style>
@@ -55,12 +53,11 @@ C_SUN = (211, 84, 0)
 C_DARK = (44, 62, 80)
 C_LIGHT = (245, 247, 248)
 
-# --- REGLAS DE NEGOCIO (OPERACIONES) ---
+# --- REGLAS DE NEGOCIO ---
 ENFERMERAS_ROL_A = ["Consuelo Ceja Liborio", "Jaqueline Hernández Sosa"]
 ENFERMERAS_ROL_B = ["Silvia Rodríguez Reynaga", "Guadalupe Georgia Lopez Ceja"]
 ENFERMERAS_NOCHE = ENFERMERAS_ROL_A + ENFERMERAS_ROL_B
 
-# --- REGLAS DE NEGOCIO (NÓMINA Y KAIZEN) ---
 EMPLEADOS_DB = {
     "ALE": "Alejandra Itzel de la Fuente Ramírez", "ARIANA": "Ariana Villanueva Temores",
     "Araceli Figueroa": "Blanca Aracely Figueroa Marroquín", "BLANCARUVC": "Blanca Estela Ruvalcaba Ruiz",
@@ -123,7 +120,7 @@ def tabla_centrada(pdf, headers, data, col_widths):
         fill = not fill
 
 # ==========================================
-# 2. CONEXIONES A DATOS
+# 2. CONEXIONES A DATOS (ETL)
 # ==========================================
 @st.cache_data(ttl=600)
 def cargar_datos_operaciones():
@@ -181,7 +178,6 @@ def limpiar_biometrico(file_bytes):
     ws = wb.active
     datos = []
     empleado_actual = None
-    
     for row in ws.iter_rows(values_only=True):
         row_str = [str(cell) if cell is not None else "" for cell in row]
         if "ID:" in row_str[0]:
@@ -193,123 +189,9 @@ def limpiar_biometrico(file_bytes):
             for dia, celda in enumerate(row_str, 1):
                 celda = str(celda).strip()
                 if len(celda) >= 5 and ":" in celda:
-                    entrada = celda[:5]
-                    datos.append({"Checador": empleado_actual, "Día": dia, "Entrada": entrada})
+                    datos.append({"Checador": empleado_actual, "Día": dia, "Entrada": celda[:5]})
             empleado_actual = None
     return pd.DataFrame(datos)
-
-# ==========================================
-# 3. MOTORES PDF
-# ==========================================
-class SunhavenPDF(FPDF):
-    def header(self):
-        if self.page_no() == 1: return
-        self.set_fill_color(*C_NAVY)
-        self.rect(0, 0, 210, 26, 'F')
-        self.set_fill_color(*C_SUN)
-        self.rect(0, 26, 210, 1.5, 'F')
-        self.set_y(9)
-        self.set_font('Helvetica', 'B', 16)
-        self.set_text_color(255, 255, 255)
-        self.cell(0, 8, sanitizar_texto(getattr(self, 'titulo_header', 'REPORTE EJECUTIVO')), 0, 1, 'C')
-        self.ln(12)
-
-    def footer(self):
-        if self.page_no() == 1: return
-        self.set_y(-15)
-        self.set_font('Helvetica', 'I', 8)
-        self.set_text_color(*C_NAVY)
-        self.set_draw_color(*C_SUN)
-        self.line(10, 282, 200, 282)
-        self.set_x(10)
-        self.cell(190, 10, sanitizar_texto(f'Página {self.page_no()}'), 0, 0, 'C')
-        self.set_x(10)
-        self.cell(190, 10, sanitizar_texto('Ing. Larry Beresford'), 0, 0, 'R')
-
-    def cover_page(self, titulo_principal, subtitulo, fecha_str):
-        self.add_page()
-        self.set_fill_color(*C_NAVY)
-        self.rect(0, 0, 210, 100, 'F')
-        self.set_fill_color(*C_SUN)
-        self.rect(0, 100, 210, 3, 'F')
-        self.set_y(40)
-        self.set_font('Helvetica', 'B', 28)
-        self.set_text_color(255, 255, 255)
-        self.cell(0, 10, sanitizar_texto('SUNHAVEN'), 0, 1, 'C')
-        self.set_font('Helvetica', '', 12)
-        self.set_text_color(220, 220, 220)
-        self.cell(0, 8, sanitizar_texto('CASA DE DESCANSO PARA ADULTOS MAYORES'), 0, 1, 'C')
-        self.set_y(140)
-        self.set_font('Helvetica', 'B', 22)
-        self.set_text_color(*C_DARK)
-        self.cell(0, 10, sanitizar_texto('REPORTE EJECUTIVO'), 0, 1, 'C')
-        self.set_font('Helvetica', 'B', 22)
-        self.set_text_color(*C_SUN)
-        self.cell(0, 12, sanitizar_texto(titulo_principal), 0, 1, 'C')
-        self.set_font('Helvetica', '', 14)
-        self.set_text_color(*C_DARK)
-        self.cell(0, 8, sanitizar_texto(subtitulo), 0, 1, 'C')
-        self.set_y(220)
-        self.set_font('Helvetica', 'B', 12)
-        self.set_text_color(*C_NAVY)
-        self.cell(0, 8, sanitizar_texto(f'PERIODO EVALUADO: {fecha_str}'), 0, 1, 'C')
-        self.set_y(260)
-        self.set_font('Helvetica', '', 11)
-        self.set_text_color(*C_DARK)
-        self.cell(0, 6, sanitizar_texto('Elaborado por:'), 0, 1, 'C')
-        self.set_font('Helvetica', 'B', 11)
-        self.cell(0, 6, sanitizar_texto('Ing. Larry Beresford'), 0, 1, 'C')
-
-# (Aquí van las funciones de generación de PDFs que ya programamos: generar_pdf_dashboard_op, generar_pdf_legal, y generar_pdf_nomina)
-# Para ahorrar espacio en el script y no saturar la respuesta, las integramos usando la misma clase base.
-
-def generar_pdf_legal_bytes(categorias_dict, checks_dict, porcentaje):
-    pdf = SunhavenPDF()
-    pdf.titulo_header = "REPORTE EJECUTIVO - BLINDAJE NORMATIVO"
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.cover_page("CUMPLIMIENTO LEGAL Y NORMATIVO", "Auditoría de Prevención Gubernamental", datetime.now().strftime("%d/%m/%Y"))
-    pdf.add_page()
-    pdf.set_font('Helvetica', 'B', 14)
-    pdf.set_text_color(*C_NAVY)
-    pdf.cell(0, 8, sanitizar_texto("ESTATUS GLOBAL DE BLINDAJE INSTITUCIONAL"), 0, 1, 'L')
-    pdf.set_draw_color(*C_SUN)
-    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-    pdf.ln(5)
-    pdf.set_font('Helvetica', '', 11)
-    pdf.set_text_color(*C_DARK)
-    pdf.cell(0, 8, sanitizar_texto(f"Nivel de cumplimiento general de la institución: {porcentaje:.1f}%"), 0, 1)
-    pdf.ln(5)
-    
-    pdf.set_fill_color(*C_NAVY)
-    pdf.set_text_color(255, 255, 255)
-    pdf.set_font('Helvetica', 'B', 9)
-    pdf.cell(150, 8, sanitizar_texto("REQUISITO NORMATIVO"), 1, 0, 'C', True)
-    pdf.cell(40, 8, sanitizar_texto("ESTATUS"), 1, 1, 'C', True)
-    
-    for cat, items in categorias_dict.items():
-        pdf.set_fill_color(220, 230, 240) 
-        pdf.set_text_color(*C_NAVY)
-        pdf.set_font('Helvetica', 'B', 8)
-        pdf.cell(190, 7, sanitizar_texto(f" {cat.upper()}"), 1, 1, 'L', True)
-        fill_row = False
-        for req in items:
-            estado = checks_dict.get(req, False)
-            pdf.set_fill_color(*C_LIGHT) if fill_row else pdf.set_fill_color(255, 255, 255)
-            pdf.set_text_color(*C_DARK)
-            req_texto = sanitizar_texto(f"   - {req}"[:87] + ("..." if len(req) > 85 else ""))
-            pdf.set_font('Helvetica', '', 8)
-            pdf.cell(150, 7, req_texto, 1, 0, 'L', fill_row)
-            if estado:
-                pdf.set_text_color(39, 174, 96)
-                txt_estado = "CUMPLE"
-            else:
-                pdf.set_text_color(231, 76, 60)
-                txt_estado = "PENDIENTE"
-            pdf.set_font('Helvetica', 'B', 8)
-            pdf.cell(40, 7, sanitizar_texto(txt_estado), 1, 1, 'C', fill_row)
-            fill_row = not fill_row
-
-    return pdf.output(dest='S').encode('latin-1', 'replace')
 
 def procesar_super_nomina(df_bio, df_bitacora, df_kaizen, mes_num, anio_num):
     retardos_list = []
@@ -321,7 +203,7 @@ def procesar_super_nomina(df_bio, df_bitacora, df_kaizen, mes_num, anio_num):
                 entrada_str = row['Entrada']
                 try:
                     h_entrada = datetime.strptime(entrada_str, "%H:%M").time()
-                    es_noche = nombre_real in TURNO_NOCHE
+                    es_noche = nombre_real in ENFERMERAS_NOCHE
                     limite = HORA_ENTRADA_NOCHE if es_noche else HORA_ENTRADA_DIA
                     if h_entrada > limite:
                         retardos_list.append({"FECHA": f"{anio_num}-{mes_num:02d}-{row['Día']:02d}", "EMPLEADO": nombre_real, "INCIDENCIA": "Retardo Biométrico", "OBSERVACION": f"Entró a las {entrada_str}"})
@@ -336,7 +218,6 @@ def procesar_super_nomina(df_bio, df_bitacora, df_kaizen, mes_num, anio_num):
         df_kaizen['Marca temporal'] = pd.to_datetime(df_kaizen['Marca temporal'], dayfirst=True, errors='coerce')
         df_k_curr = df_kaizen[(df_kaizen['Marca temporal'].dt.month == mes_num) & (df_kaizen['Marca temporal'].dt.year == anio_num)]
         participantes_curr = df_k_curr.iloc[:, 1].str.strip().unique().tolist()
-        
         for emp in ENFERMERAS_LISTA:
             if emp not in participantes_curr and emp not in EXCEPCIONES_KAIZEN:
                 no_participaron.append(emp)
@@ -386,36 +267,240 @@ def procesar_super_nomina(df_bio, df_bitacora, df_kaizen, mes_num, anio_num):
     return pd.DataFrame(nomina), df_todas_inc, df_retardos, stats_k, propuestas
 
 # ==========================================
+# 3. MOTORES PDF
+# ==========================================
+class SunhavenPDF(FPDF):
+    def header(self):
+        if self.page_no() == 1: return
+        self.set_fill_color(*C_NAVY)
+        self.rect(0, 0, 210, 26, 'F')
+        self.set_fill_color(*C_SUN)
+        self.rect(0, 26, 210, 1.5, 'F')
+        self.set_y(9)
+        self.set_font('Helvetica', 'B', 16)
+        self.set_text_color(255, 255, 255)
+        self.cell(0, 8, sanitizar_texto(getattr(self, 'titulo_header', 'REPORTE EJECUTIVO')), 0, 1, 'C')
+        self.ln(12)
+
+    def footer(self):
+        if self.page_no() == 1: return
+        self.set_y(-15)
+        self.set_font('Helvetica', 'I', 8)
+        self.set_text_color(*C_NAVY)
+        self.set_draw_color(*C_SUN)
+        self.line(10, 282, 200, 282)
+        self.set_x(10)
+        self.cell(190, 10, sanitizar_texto(f'Página {self.page_no()}'), 0, 0, 'C')
+        self.set_x(10)
+        self.cell(190, 10, sanitizar_texto('Ing. Larry Beresford'), 0, 0, 'R')
+
+    def cover_page(self, titulo, subtitulo, fecha_str):
+        self.add_page()
+        self.set_fill_color(*C_NAVY)
+        self.rect(0, 0, 210, 100, 'F')
+        self.set_fill_color(*C_SUN)
+        self.rect(0, 100, 210, 3, 'F')
+        self.set_y(40)
+        self.set_font('Helvetica', 'B', 28)
+        self.set_text_color(255, 255, 255)
+        self.cell(0, 10, sanitizar_texto('SUNHAVEN'), 0, 1, 'C')
+        self.set_font('Helvetica', '', 12)
+        self.set_text_color(220, 220, 220)
+        self.cell(0, 8, sanitizar_texto('CASA DE DESCANSO PARA ADULTOS MAYORES'), 0, 1, 'C')
+        self.set_y(140)
+        self.set_font('Helvetica', 'B', 22)
+        self.set_text_color(*C_DARK)
+        self.cell(0, 10, sanitizar_texto('REPORTE EJECUTIVO'), 0, 1, 'C')
+        self.set_font('Helvetica', 'B', 22)
+        self.set_text_color(*C_SUN)
+        self.cell(0, 12, sanitizar_texto(titulo), 0, 1, 'C')
+        self.set_font('Helvetica', '', 14)
+        self.set_text_color(*C_DARK)
+        self.cell(0, 8, sanitizar_texto(subtitulo), 0, 1, 'C')
+        self.set_y(220)
+        self.set_font('Helvetica', 'B', 12)
+        self.set_text_color(*C_NAVY)
+        self.cell(0, 8, sanitizar_texto(f'PERIODO EVALUADO: {fecha_str}'), 0, 1, 'C')
+        self.set_y(260)
+        self.set_font('Helvetica', '', 11)
+        self.set_text_color(*C_DARK)
+        self.cell(0, 6, sanitizar_texto('Elaborado por:'), 0, 1, 'C')
+        self.set_font('Helvetica', 'B', 11)
+        self.cell(0, 6, sanitizar_texto('Ing. Larry Beresford'), 0, 1, 'C')
+
+def generar_pdf_legal_bytes(categorias_dict, checks_dict, porcentaje):
+    pdf = SunhavenPDF()
+    pdf.titulo_header = "REPORTE EJECUTIVO - BLINDAJE NORMATIVO"
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.cover_page("CUMPLIMIENTO LEGAL Y NORMATIVO", "Auditoría de Prevención Gubernamental", datetime.now().strftime("%d/%m/%Y"))
+    pdf.add_page()
+    pdf.set_font('Helvetica', 'B', 14)
+    pdf.set_text_color(*C_NAVY)
+    pdf.cell(0, 8, sanitizar_texto("ESTATUS GLOBAL DE BLINDAJE INSTITUCIONAL"), 0, 1, 'L')
+    pdf.set_draw_color(*C_SUN)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(5)
+    pdf.set_font('Helvetica', '', 11)
+    pdf.set_text_color(*C_DARK)
+    pdf.cell(0, 8, sanitizar_texto(f"Nivel de cumplimiento general de la institución: {porcentaje:.1f}%"), 0, 1)
+    pdf.ln(5)
+    
+    pdf.set_fill_color(*C_NAVY)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font('Helvetica', 'B', 9)
+    pdf.cell(150, 8, sanitizar_texto("REQUISITO NORMATIVO"), 1, 0, 'C', True)
+    pdf.cell(40, 8, sanitizar_texto("ESTATUS"), 1, 1, 'C', True)
+    
+    for cat, items in categorias_dict.items():
+        pdf.set_fill_color(220, 230, 240) 
+        pdf.set_text_color(*C_NAVY)
+        pdf.set_font('Helvetica', 'B', 8)
+        pdf.cell(190, 7, sanitizar_texto(f" {cat.upper()}"), 1, 1, 'L', True)
+        fill_row = False
+        for req in items:
+            estado = checks_dict.get(req, False)
+            pdf.set_fill_color(*C_LIGHT) if fill_row else pdf.set_fill_color(255, 255, 255)
+            pdf.set_text_color(*C_DARK)
+            req_texto = sanitizar_texto(f"   - {req}"[:87] + ("..." if len(req) > 85 else ""))
+            pdf.set_font('Helvetica', '', 8)
+            pdf.cell(150, 7, req_texto, 1, 0, 'L', fill_row)
+            if estado:
+                pdf.set_text_color(39, 174, 96)
+                txt_estado = "CUMPLE"
+            else:
+                pdf.set_text_color(231, 76, 60)
+                txt_estado = "PENDIENTE"
+            pdf.set_font('Helvetica', 'B', 8)
+            pdf.cell(40, 7, sanitizar_texto(txt_estado), 1, 1, 'C', fill_row)
+            fill_row = not fill_row
+    return pdf.output(dest='S').encode('latin-1', 'replace')
+
+def generar_graficos_nomina(df_incidencias, df_retardos, stats_kaizen):
+    temp_dir = os.path.join(os.path.dirname(__file__), f'temp_img_{uuid.uuid4().hex}')
+    os.makedirs(temp_dir, exist_ok=True)
+    paths = {}
+    
+    plt.figure(figsize=(7, 4))
+    inc_counts = df_incidencias['INCIDENCIA'].value_counts()
+    if not inc_counts.empty:
+        plt.bar(inc_counts.index, inc_counts.values, color=HEX_NAVY)
+        plt.title('Pareto de Incidencias Operativas', fontsize=10, fontweight='bold')
+        plt.xticks(rotation=15, ha='right', fontsize=8)
+    plt.tight_layout()
+    paths['pareto'] = os.path.join(temp_dir, 'pareto.png')
+    plt.savefig(paths['pareto'])
+    plt.close()
+
+    plt.figure(figsize=(7, 4))
+    ret_counts = df_retardos['EMPLEADO'].value_counts().head(10)
+    if not ret_counts.empty:
+        plt.barh(ret_counts.index, ret_counts.values, color=HEX_RED)
+        plt.title('Ranking de Retardos Acumulados', fontsize=10, fontweight='bold')
+        plt.gca().invert_yaxis()
+    plt.tight_layout()
+    paths['retardos'] = os.path.join(temp_dir, 'retardos.png')
+    plt.savefig(paths['retardos'])
+    plt.close()
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 4))
+    colors = [HEX_GREEN, HEX_RED]
+    if (stats_kaizen['prev_si'] + stats_kaizen['prev_no']) > 0:
+        ax1.pie([stats_kaizen['prev_si'], stats_kaizen['prev_no']], labels=['Sí', 'No'], autopct='%1.1f%%', colors=colors, startangle=90)
+    ax1.set_title('Participación Mes Anterior', fontsize=10)
+    if (stats_kaizen['curr_si'] + stats_kaizen['curr_no']) > 0:
+        ax2.pie([stats_kaizen['curr_si'], stats_kaizen['curr_no']], labels=['Sí', 'No'], autopct='%1.1f%%', colors=colors, startangle=90)
+    ax2.set_title('Participación Mes Actual', fontsize=10)
+    plt.tight_layout()
+    paths['kaizen_pie'] = os.path.join(temp_dir, 'kaizen_pie.png')
+    plt.savefig(paths['kaizen_pie'])
+    plt.close()
+
+    return paths, temp_dir
+
+def generar_pdf_nomina_kaizen(df_nomina, df_incidencias, df_retardos, stats_kaizen, propuestas, mes_str):
+    rutas_img, temp_dir = generar_graficos_nomina(df_incidencias, df_retardos, stats_kaizen)
+    pdf = SunhavenPDF()
+    pdf.titulo_header = "REPORTE EJECUTIVO - NÓMINA Y KAIZEN"
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.cover_page("CONTROL DE BONOS Y MEJORA CONTINUA", "Auditoría de Desempeño y Participación", mes_str)
+    
+    pdf.add_page()
+    pdf.set_font('Helvetica', 'B', 14)
+    pdf.set_text_color(*C_NAVY)
+    pdf.cell(0, 8, sanitizar_texto("1. ANÁLISIS DE INCIDENCIAS Y RETARDOS"), 0, 1, 'L')
+    pdf.set_draw_color(*C_SUN)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(5)
+    pdf.image(rutas_img['pareto'], x=10, w=90)
+    pdf.image(rutas_img['retardos'], x=110, w=90)
+    pdf.ln(80)
+    
+    pdf.add_page()
+    pdf.set_font('Helvetica', 'B', 14)
+    pdf.set_text_color(*C_NAVY)
+    pdf.cell(0, 8, sanitizar_texto("2. DESGLOSE DE BONOS (TOTAL A PAGAR)"), 0, 1, 'L')
+    pdf.set_draw_color(*C_SUN)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(5)
+    datos_nomina = [[row['COLABORADOR'], f"${row['$ PUNTUAL']}", f"${row['$ UNIFORM']}", f"${row['$ ADMIN']}", f"${row['TOTAL A PAGAR']}"] for _, row in df_nomina.iterrows()]
+    tabla_centrada(pdf, ["COLABORADOR", "PUNTUAL", "UNIFORME", "ADMIN", "TOTAL"], datos_nomina, [70, 25, 25, 25, 25])
+    
+    pdf.add_page()
+    pdf.set_font('Helvetica', 'B', 14)
+    pdf.set_text_color(*C_NAVY)
+    pdf.cell(0, 8, sanitizar_texto("3. ESTADÍSTICAS DE PARTICIPACIÓN KAIZEN"), 0, 1, 'L')
+    pdf.set_draw_color(*C_SUN)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(5)
+    pdf.image(rutas_img['kaizen_pie'], x=20, w=170)
+    pdf.ln(85)
+    pdf.set_font('Helvetica', 'B', 10)
+    pdf.set_text_color(*C_DARK)
+    pdf.cell(0, 6, sanitizar_texto("Personal de Enfermería que NO participó (Se aplica deducción Administrativa):"), 0, 1)
+    pdf.set_font('Helvetica', '', 10)
+    for emp in stats_kaizen['lista_no']:
+        pdf.cell(0, 5, sanitizar_texto(f"  - {emp}"), 0, 1)
+        
+    pdf.add_page()
+    pdf.set_font('Helvetica', 'B', 14)
+    pdf.set_text_color(*C_NAVY)
+    pdf.cell(0, 8, sanitizar_texto("4. PROPUESTAS DE MEJORA CONTINUA (KAIZEN)"), 0, 1, 'L')
+    pdf.set_draw_color(*C_SUN)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(5)
+    for prop in propuestas:
+        pdf.set_fill_color(240, 245, 250)
+        pdf.set_font('Helvetica', 'B', 10)
+        pdf.set_text_color(*C_NAVY)
+        pdf.cell(130, 8, sanitizar_texto(f" Colaborador(a): {prop['nombre']}"), 'L T', 0, 'L', True)
+        pdf.set_font('Helvetica', 'I', 9)
+        pdf.cell(60, 8, sanitizar_texto(f"Fecha: {prop['fecha']} "), 'T R', 1, 'R', True)
+        pdf.set_font('Helvetica', '', 10)
+        pdf.set_text_color(*C_DARK)
+        pdf.multi_cell(0, 6, sanitizar_texto(f"Propuesta:\n{prop['propuesta']}\n"), 'L R B', 'J', False)
+        pdf.ln(3)
+
+    shutil.rmtree(temp_dir, ignore_errors=True)
+    return pdf.output(dest='S').encode('latin-1', 'replace')
+
+# ==========================================
 # 4. APLICACIÓN PRINCIPAL (ENRUTADOR)
 # ==========================================
 def main():
     with st.sidebar:
         st.markdown("### NAVEGADOR EMPRESARIAL")
-        modulo_activo = st.radio("Seleccione el Módulo:", [
-            "📊 Dashboard de Operaciones",
-            "💰 Gestión de Nómina y Kaizen"
-        ])
+        modulo_activo = st.radio("Seleccione el Modulo:", [
+            "Dashboard de Operaciones",
+            "Gestion de Nomina",
+            "Turno Nocturno"
+        ], label_visibility="collapsed")
         
         st.divider()
-        st.markdown("#### Herramientas Legacy (Respaldo)")
-        st.info("Scripts locales anteriores.")
-        if st.button("Bot Dashboard Operaciones (Local)", use_container_width=True):
-            subprocess.run([sys.executable, os.path.join(BASE_DIR, 'pages', 'bot_operaciones.py')])
-            st.success("Ejecutado.")
-        if st.button("Bot Auditor Rondines (Local)", use_container_width=True):
-            subprocess.run([sys.executable, os.path.join(BASE_DIR, 'pages', 'auditor_rondines.py')])
-            st.success("Ejecutado.")
-        if st.button("Bot Kaizen (Local)", use_container_width=True):
-            subprocess.run([sys.executable, os.path.join(BASE_DIR, 'pages', 'bot_kaizen.py')])
-            st.success("Ejecutado.")
-        if st.button("Bot Retardos (Local)", use_container_width=True):
-            subprocess.run([sys.executable, os.path.join(BASE_DIR, 'pages', 'bot_retardos.py')])
-            st.success("Ejecutado.")
 
     # ---------------------------------------------------------
-    # MÓDULO 1: DASHBOARD OPERATIVO (El que ya teníamos)
+    # MÓDULO 1: DASHBOARD OPERATIVO
     # ---------------------------------------------------------
-    if modulo_activo == "📊 Dashboard de Operaciones":
+    if modulo_activo == "Dashboard de Operaciones":
         c1, c2 = st.columns([0.8, 0.2])
         with c1: st.title("Dashboard de Operaciones e Infraestructura")
         with c2: 
@@ -424,7 +509,7 @@ def main():
                 st.rerun()
 
         hoy = datetime.now()
-        fechas = st.date_input("Rango de Análisis", [hoy - timedelta(days=30), hoy])
+        fechas = st.date_input("Rango de Analisis", [hoy - timedelta(days=30), hoy])
         if len(fechas) != 2: st.stop()
         fecha_inicio, fecha_fin = fechas
         
@@ -482,7 +567,7 @@ def main():
             areas_kpi = {k: (v if pd.notna(v) else 0) for k, v in areas_kpi.items()}
             ico_master = sum(areas_kpi.values()) / len(areas_kpi)
 
-            crit = {"Uniforme": df_serv[c_uni].mean(), "Basura": df_serv[c_bas].mean(), "Ropa": df_serv[c_lav_r].mean(), "Jabón": df_serv[c_lav_j].mean(), "Zonas": df_serv[c_lim].mean(), "5S Roperos": df_rop[c_5s].mean(), "Tendido Camas": df_rop[c_cam].mean(), "Rondines Noct.": val_nocturno}
+            crit = {"Uniforme": df_serv[c_uni].mean(), "Basura": df_serv[c_bas].mean(), "Ropa": df_serv[c_lav_r].mean(), "Jabon": df_serv[c_lav_j].mean(), "Zonas": df_serv[c_lim].mean(), "5S Roperos": df_rop[c_5s].mean(), "Tendido Camas": df_rop[c_cam].mean(), "Rondines Noct": val_nocturno}
             df_c = pd.DataFrame.from_dict(crit, orient='index', columns=['V']).sort_values('V', ascending=True).reset_index()
 
             personal_diurno = set(df_rop[col_enf].dropna().unique()) - set(ENFERMERAS_NOCHE)
@@ -501,7 +586,7 @@ def main():
             st.error(f"Error procesando operaciones: {e}")
             ico_master = 0
 
-        estatus_txt = "ESTABLE" if ico_master >= 90 else "ATENCIÓN REQUERIDA"
+        estatus_txt = "ESTABLE" if ico_master >= 90 else "ATENCION REQUERIDA"
         st.markdown(f"""<div class='exec-header'>
             <div><p style='margin:0; font-weight:700; color:#64748b; font-size:12px; text-transform:uppercase;'>Estatus Institucional</p>
             <h2 style='margin:0; color:{HEX_GREEN if ico_master >= 90 else HEX_RED};'>{estatus_txt}</h2></div>
@@ -509,7 +594,7 @@ def main():
             <h1 style='margin:0; font-size:48px;'>{ico_master:.1f}%</h1></div>
         </div>""", unsafe_allow_html=True)
 
-        tabs_op = st.tabs(["Tablero de Control", "Rendimiento Individual", "Blindaje Legal", "Auditoría de Datos"])
+        tabs_op = st.tabs(["Tablero de Control", "Rendimiento Individual", "Blindaje Legal", "Data Cruda"])
 
         with tabs_op[0]:
             cols = st.columns(5)
@@ -519,13 +604,13 @@ def main():
             st.divider()
             c1, c2 = st.columns(2)
             with c1:
-                st.write("### Pareto por Área")
+                st.write("### Pareto por Area")
                 df_a = pd.DataFrame.from_dict(areas_kpi, orient='index', columns=['V']).sort_values('V', ascending=False).reset_index()
                 fig = px.bar(df_a, x='index', y='V', text_auto='.1f', color_discrete_sequence=[HEX_NAVY])
                 fig.add_hline(y=90, line_dash="dash", line_color="red")
                 st.plotly_chart(fig, use_container_width=True)
             with c2:
-                st.write("### Análisis de Causa Raíz")
+                st.write("### Analisis de Causa Raiz")
                 fig_c = px.bar(df_c, x='V', y='index', orientation='h', text_auto='.1f', color_discrete_sequence=[HEX_RED])
                 fig_c.add_vline(x=90, line_dash="dash", line_color="black")
                 st.plotly_chart(fig_c, use_container_width=True)
@@ -535,40 +620,40 @@ def main():
             st.dataframe(df_ranking, use_container_width=True)
 
         with tabs_op[2]:
-            st.write("### Auditoría y Blindaje Institucional")
+            st.write("### Auditoria y Blindaje Institucional")
             categorias = {
-                "COPRISJAL (Regulación Sanitaria)": [
+                "COPRISJAL (Regulacion Sanitaria)": [
                     "Aviso de Funcionamiento y Responsable Sanitario exhibido",
-                    "Aviso de Botiquín/Farmacia y Recetario Controlado autorizado",
-                    "NOM-031-SSA3 (Asistencia Social, Manuales y Bitácoras)",
-                    "NOM-004-SSA3 (Expedientes Clínicos y Resguardo seguro)",
-                    "NOM-087-SEMARNAT (Botes rígidos, bolsas rojas y contrato RPBI)",
+                    "Aviso de Botiquin/Farmacia y Recetario Controlado autorizado",
+                    "NOM-031-SSA3 (Asistencia Social, Manuales y Bitacoras)",
+                    "NOM-004-SSA3 (Expedientes Clinicos y Resguardo seguro)",
+                    "NOM-087-SEMARNAT (Botes rigidos, bolsas rojas y contrato RPBI)",
                     "NOM-045 y NOM-251 (Protocolos de Infecciones e Higiene en Cocina)",
-                    "Certificado vigente de fumigación y control de plagas"
+                    "Certificado vigente de fumigacion y control de plagas"
                 ],
                 "STPS (Seguridad y Salud Laboral)": [
                     "Reglamento Interior de Trabajo (RIT) depositado ante autoridad",
-                    "NOM-035-STPS (Política de prevención de Riesgos Psicosociales)",
-                    "NOM-019-STPS (Comisión de Seguridad e Higiene conformada)",
-                    "NOM-036-STPS (Prevención de Riesgos Ergonómicos / Carga)",
-                    "NOM-030-STPS (Diagnóstico Integral de seguridad en el trabajo)",
+                    "NOM-035-STPS (Politica de prevencion de Riesgos Psicosociales)",
+                    "NOM-019-STPS (Comision de Seguridad e Higiene conformada)",
+                    "NOM-036-STPS (Prevencion de Riesgos Ergonomicos / Carga)",
+                    "NOM-030-STPS (Diagnostico Integral de seguridad en el trabajo)",
                     "Constancias de Habilidades Laborales emitidas (DC-3)"
                 ],
-                "Protección Civil y Ecología (Ayuntamiento)": [
-                    "Programa Interno de Protección Civil (PIPC) con visto bueno",
-                    "Póliza de Responsabilidad Civil (Daños a terceros) vigente",
-                    "Dictámenes Técnicos vigentes (Estructural DRO, Eléctrico y Gas LP)",
-                    "Equipamiento instalado (Extintores ABC/K, Detectores, Señalética)",
-                    "Brigadas capacitadas y evidencia de mínimo 2 simulacros anuales",
-                    "Mantenimiento de trampas de grasa y recolección de aceite vegetal",
+                "Proteccion Civil y Ecologia (Ayuntamiento)": [
+                    "Programa Interno de Proteccion Civil (PIPC) con visto bueno",
+                    "Poliza de Responsabilidad Civil (Danos a terceros) vigente",
+                    "Dictamenes Tecnicos vigentes (Estructural DRO, Electrico y Gas LP)",
+                    "Equipamiento instalado (Extintores ABC/K, Detectores, Senaletica)",
+                    "Brigadas capacitadas y evidencia de minimo 2 simulacros anuales",
+                    "Mantenimiento de trampas de grasa y recoleccion de aceite vegetal",
                     "Licencia Municipal de Giro Comercial vigente y a la vista"
                 ],
                 "Legal, Privacidad y PROFECO": [
                     "Aviso de Privacidad Integral exhibido (INAI)",
                     "Consentimiento expreso firmado para tratamiento de Datos Sensibles",
-                    "Contratos de prestación de servicios registrados ante PROFECO",
+                    "Contratos de prestacion de servicios registrados ante PROFECO",
                     "Constancia de registro vigente ante Asistencia Social (IJAS/DIF)",
-                    "Contratos laborales actualizados con cláusulas de confidencialidad"
+                    "Contratos laborales actualizados con clausulas de confidencialidad"
                 ]
             }
             if 'checks_normas' not in st.session_state: st.session_state.checks_normas = {}
@@ -588,40 +673,39 @@ def main():
             porcentaje_legal = (items_cumplidos / total_items) * 100 if total_items > 0 else 0
             
             with c_leg2:
-                st.write(f"#### Índice de Integridad: {int(porcentaje_legal)}%")
+                st.write(f"#### Indice de Integridad: {int(porcentaje_legal)}%")
                 st.progress(porcentaje_legal / 100)
                 st.divider()
                 if st.button("Preparar Reporte Legal", use_container_width=True):
                     st.session_state['pdf_legal'] = generar_pdf_legal_bytes(categorias, st.session_state.checks_normas, porcentaje_legal)
                 if 'pdf_legal' in st.session_state:
-                    st.download_button("Descargar Auditoría PDF", data=st.session_state['pdf_legal'], file_name=f"Legal_{datetime.now().strftime('%d%m%Y')}.pdf", mime="application/pdf", use_container_width=True)
+                    st.download_button("Descargar Auditoria PDF", data=st.session_state['pdf_legal'], file_name=f"Legal_{datetime.now().strftime('%d%m%Y')}.pdf", mime="application/pdf", use_container_width=True)
 
         with tabs_op[3]:
-            st.write("### Tuberías de Datos Operativas (Data Cruda)")
-            sub1, sub2, sub3 = st.tabs(["Servicios Generales", "Enfermería Vespertina", "Rondines Nocturnos"])
+            st.write("### Tuberias de Datos Operativas (Data Cruda)")
+            sub1, sub2, sub3 = st.tabs(["Servicios Generales", "Enfermeria Vespertina", "Rondines Nocturnos"])
             with sub1: st.dataframe(df_serv, use_container_width=True)
             with sub2: st.dataframe(df_rop, use_container_width=True)
             with sub3: st.dataframe(df_ron, use_container_width=True)
 
-
     # ---------------------------------------------------------
-    # MÓDULO 2: NÓMINA Y KAIZEN (NUEVO)
+    # MÓDULO 2: GESTIÓN DE NÓMINA Y KAIZEN
     # ---------------------------------------------------------
-    elif modulo_activo == "💰 Gestión de Nómina y Kaizen":
+    elif modulo_activo == "Gestion de Nomina":
         c1, c2 = st.columns([0.6, 0.4])
-        with c1: st.title("Gestión de Nómina y Mejora Continua")
+        with c1: st.title("Gestion de Nomina y Mejora Continua")
         with c2:
-            st.write("Configuración del Periodo:")
+            st.write("Configuracion del Periodo:")
             col_m, col_a = st.columns(2)
             with col_m: mes_eval = st.selectbox("Mes", range(1, 13), index=datetime.now().month-1, label_visibility="collapsed")
             with col_a: anio_eval = st.number_input("Año", min_value=2020, max_value=2050, value=datetime.now().year, label_visibility="collapsed")
             file_asis = st.file_uploader("Subir 'Asistencia.xlsx' (Biométrico)", type=['xlsx', 'csv'])
 
         df_bitacora = cargar_bitacora()
-        tabs_nom = st.tabs(["Dictamen de Nómina", "Bitácora Digital (Incidencias)", "Auditoría Kaizen/Biométrico"])
+        tabs_nom = st.tabs(["Dictamen de Nomina", "Bitacora Digital", "Data Cruda"])
 
         with tabs_nom[1]:
-            st.write("### Bitácora Manual de Supervisión")
+            st.write("### Bitacora Manual de Supervision")
             st.info("Nota: Las faltas leves son informativas. Las faltas graves (Agresión/Regla Oro) cancelan toda la bolsa ($1,500).")
             with st.form("form_incidencia"):
                 c_f1, c_f2, c_f3 = st.columns(3)
@@ -630,7 +714,7 @@ def main():
                 with c_f3: f_inc = st.selectbox("Tipo de Incidencia", TIPO_INCIDENCIAS)
                 f_obs = st.text_input("Observaciones / Detalles")
                 
-                if st.form_submit_button("Guardar en Bitácora"):
+                if st.form_submit_button("Guardar en Bitacora"):
                     guardar_incidencia(f_fecha.strftime('%Y-%m-%d'), f_emp, f_inc, f_obs)
                     st.success("Guardado correctamente.")
                     st.rerun()
@@ -646,7 +730,7 @@ def main():
 
         with tabs_nom[0]:
             if file_asis:
-                if st.button("Procesar y Cruzar Nómina vs Kaizen", type="primary", use_container_width=True):
+                if st.button("Procesar y Cruzar Nomina vs Kaizen", type="primary", use_container_width=True):
                     with st.spinner("Descargando Kaizen de Google Sheets y calculando deducciones..."):
                         try:
                             df_kaizen = fetch_kaizen_data()
@@ -656,7 +740,7 @@ def main():
                         except Exception as e:
                             st.error(f"Error procesando archivos: {e}")
             else:
-                st.warning("⚠️ Sube el archivo del biométrico (Asistencia.xlsx) para poder procesar la nómina.")
+                st.warning("Sube el archivo del biometrico (Asistencia.xlsx) para poder procesar la nomina.")
 
             if 'nomina_data' in st.session_state:
                 df_nomina, df_inc, df_ret, stats_k, props = st.session_state['nomina_data']
@@ -667,18 +751,81 @@ def main():
                     <h1 style='margin:0; font-size:48px; color:{HEX_GREEN};'>${df_nomina['TOTAL A PAGAR'].sum():,}</h1></div>
                 </div>""", unsafe_allow_html=True)
 
-                st.write("**Desglose de Nómina Final**")
+                c_btn1, c_btn2 = st.columns([0.3, 0.7])
+                with c_btn1:
+                    pdf_bytes = generar_pdf_nomina_kaizen(df_nomina, df_inc, df_ret, stats_k, props, f"{mes_eval:02d}/{anio_eval}")
+                    st.download_button("Descargar PDF Unificado", data=pdf_bytes, file_name=f"Nomina_{mes_eval:02d}_{anio_eval}.pdf", mime="application/pdf", use_container_width=True)
+
+                st.write("**Desglose de Nomina Final**")
                 st.dataframe(df_nomina, use_container_width=True, hide_index=True)
-                
-                # (Aquí omito la generación del PDF Unificado en esta vista por brevedad del token, pero 
-                # todo el cálculo matemático está integrado y visible en el DataFrame).
 
         with tabs_nom[2]:
             if 'nomina_data' in st.session_state:
                 st.write("### Data Cruda y Trazabilidad")
-                sub1, sub2 = st.tabs(["⌚ Retardos Biométricos (Limpios)", "💡 Propuestas Kaizen (GSheets)"])
+                sub1, sub2 = st.tabs(["Retardos Biometricos", "Propuestas Kaizen"])
                 with sub1: st.dataframe(st.session_state['nomina_data'][2], use_container_width=True)
                 with sub2: st.dataframe(fetch_kaizen_data(), use_container_width=True)
+
+    # ---------------------------------------------------------
+    # MÓDULO 3: TURNO NOCTURNO
+    # ---------------------------------------------------------
+    elif modulo_activo == "Turno Nocturno":
+        c1, c2 = st.columns([0.8, 0.2])
+        with c1: st.title("Evaluacion de Turno Nocturno")
+        with c2: 
+            if st.button("Sincronizar DB", use_container_width=True):
+                cargar_datos_operaciones.clear()
+                st.rerun()
+
+        hoy = datetime.now()
+        fechas = st.date_input("Rango de Analisis Nocturno", [hoy - timedelta(days=30), hoy])
+        if len(fechas) != 2: st.stop()
+        fecha_inicio, fecha_fin = fechas
+        
+        data = cargar_datos_operaciones()
+        if data is None: st.stop()
+        
+        df_ron = data["n"].copy()
+        df_ron['Marca temporal'] = pd.to_datetime(df_ron['Marca temporal'], dayfirst=True, errors='coerce')
+        df_ron['Fecha'] = df_ron['Marca temporal'].dt.date
+        df_ron = df_ron[(df_ron['Fecha'] >= fecha_inicio) & (df_ron['Fecha'] <= fecha_fin)]
+
+        turnos_A = sum(1 for d in pd.date_range(fecha_inicio, fecha_fin) if d.weekday() in [0, 2, 4])
+        turnos_B = sum(1 for d in pd.date_range(fecha_inicio, fecha_fin) if d.weekday() in [1, 3, 5])
+        
+        df_ron['Hora'] = df_ron['Marca temporal'].dt.hour
+        def get_bloque(h):
+            if 21 <= h <= 23: return "B1"
+            if 0 <= h <= 3: return "B2"
+            if 4 <= h <= 6: return "B3"
+            return None
+        df_ron['Bloque'] = df_ron['Hora'].apply(get_bloque)
+        
+        pct_nocturnos = {}
+        for enf in ENFERMERAS_NOCHE:
+            meta = (turnos_A if enf in ENFERMERAS_ROL_A else turnos_B) * 3
+            realizadas = len(df_ron[(df_ron['Enfermera'] == enf) & (df_ron['Bloque'].notnull())][['Fecha', 'Bloque']].drop_duplicates())
+            pct_nocturnos[enf] = min((realizadas / meta * 100), 100) if meta > 0 else 100
+        val_nocturno = sum(pct_nocturnos.values()) / len(pct_nocturnos) if pct_nocturnos else 0
+
+        st.markdown(f"""<div class='exec-header'>
+            <div><p style='margin:0; font-weight:700; color:#64748b; font-size:12px; text-transform:uppercase;'>Cumplimiento de Seguridad</p>
+            <h2 style='margin:0; color:{HEX_GREEN if val_nocturno >= 90 else HEX_RED};'>{"ESTABLE" if val_nocturno >= 90 else "ALERTA"}</h2></div>
+            <div style='text-align:right;'><p style='margin:0; font-weight:700; color:#64748b; font-size:12px; text-transform:uppercase;'>Promedio Global Nocturno</p>
+            <h1 style='margin:0; font-size:48px;'>{val_nocturno:.1f}%</h1></div>
+        </div>""", unsafe_allow_html=True)
+
+        tabs_noc = st.tabs(["Rendimiento por Enfermera", "Registro Analitico"])
+
+        with tabs_noc[0]:
+            df_noc = pd.DataFrame(list(pct_nocturnos.items()), columns=['Enfermera', 'Cumplimiento']).sort_values('Cumplimiento', ascending=False)
+            fig_noc = px.bar(df_noc, x='Enfermera', y='Cumplimiento', color_discrete_sequence=[HEX_NAVY], text_auto='.1f')
+            fig_noc.add_hline(y=90, line_dash="dash", line_color="red")
+            st.plotly_chart(fig_noc, use_container_width=True)
+
+        with tabs_noc[1]:
+            st.write("### Log de Escaneos QR")
+            st.dataframe(df_ron.sort_values(by="Marca temporal", ascending=False), use_container_width=True)
 
     st.markdown("<div class='footer-watermark'>Sunhaven Intelligence Suite - Enterprise Edition</div>", unsafe_allow_html=True)
 
