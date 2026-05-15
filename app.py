@@ -190,8 +190,9 @@ def generar_pdf_dashboard_op(ico, estatus, df_a, df_c, df_evol, fecha_str):
     for col in df_evol.columns:
         plt.plot(df_evol.index, df_evol[col], marker='o', label=col)
     plt.axhline(90, color='red', linestyle='--')
-    plt.title('Evolución Histórica', fontsize=10, fontweight='bold')
-    plt.legend(loc='lower center', bbox_to_anchor=(0.5, -0.3), ncol=5)
+    plt.title('Evolución Histórica (Tendencia Sincronizada)', fontsize=10, fontweight='bold')
+    plt.xticks(rotation=45, ha='right', fontsize=8)
+    plt.legend(loc='lower center', bbox_to_anchor=(0.5, -0.4), ncol=5)
     plt.tight_layout()
     p_evol = os.path.join(temp_dir, 'evol_op.png')
     plt.savefig(p_evol)
@@ -212,47 +213,22 @@ def generar_pdf_dashboard_op(ico, estatus, df_a, df_c, df_evol, fecha_str):
     pdf.set_text_color(*C_DARK)
     pdf.cell(0, 8, sanitizar_texto(f"Índice de Cumplimiento Operativo (ICO Maestro): {ico:.1f}%"), 0, 1)
     pdf.cell(0, 8, sanitizar_texto(f"Dictamen del Sistema: {estatus}"), 0, 1)
-    pdf.ln(5)
     
-    areas_bajas = df_a[df_a['V'] < 90].sort_values('V', ascending=True)
-    pdf.set_font('Helvetica', 'B', 10)
-    pdf.set_text_color(*C_SUN)
-    if not areas_bajas.empty:
-        pdf.multi_cell(0, 6, sanitizar_texto("DICTAMEN: Las siguientes áreas presentan un desempeño inferior al 90% y requieren atención por orden de prioridad:"))
-        pdf.set_font('Helvetica', '', 10)
-        for _, r in areas_bajas.iterrows():
-            pdf.cell(0, 6, sanitizar_texto(f"  - {r['index']}: {r['V']:.1f}%"), 0, 1)
-    else:
-        pdf.multi_cell(0, 6, sanitizar_texto("DICTAMEN: Todas las áreas operan de manera óptima por encima de la línea base del 90%."))
     pdf.ln(5)
-
     pdf.set_font('Helvetica', 'B', 14)
     pdf.set_text_color(*C_NAVY)
     pdf.cell(0, 8, sanitizar_texto("2. DESEMPEÑO POR DEPARTAMENTO"), 0, 1, 'L')
     pdf.line(10, pdf.get_y(), 200, pdf.get_y())
     pdf.image(p_pareto, x=30, w=150)
-    pdf.ln(80)
+    pdf.ln(75)
     
-    pdf.add_page()
     pdf.set_font('Helvetica', 'B', 14)
     pdf.set_text_color(*C_NAVY)
     pdf.cell(0, 8, sanitizar_texto("3. ANÁLISIS DE CAUSA RAÍZ"), 0, 1, 'L')
     pdf.line(10, pdf.get_y(), 200, pdf.get_y())
     pdf.ln(3)
-
-    causas_bajas = df_c[df_c['V'] < 90].sort_values('V', ascending=True)
-    pdf.set_font('Helvetica', 'B', 10)
-    pdf.set_text_color(*C_SUN)
-    if not causas_bajas.empty:
-        pdf.multi_cell(0, 6, sanitizar_texto("DICTAMEN: Para estabilizar el ICO, se debe atender prioritariamente la corrección de los siguientes criterios (Por debajo del 90%):"))
-        pdf.set_font('Helvetica', '', 10)
-        for _, r in causas_bajas.iterrows():
-            pdf.cell(0, 6, sanitizar_texto(f"  - {r['index']}: {r['V']:.1f}%"), 0, 1)
-    else:
-        pdf.multi_cell(0, 6, sanitizar_texto("DICTAMEN: No se detectan criterios críticos en este periodo."))
-    
     pdf.image(p_causa, x=30, w=150)
-    pdf.ln(80)
+    pdf.ln(75)
     
     pdf.add_page()
     pdf.set_font('Helvetica', 'B', 14)
@@ -261,7 +237,27 @@ def generar_pdf_dashboard_op(ico, estatus, df_a, df_c, df_evol, fecha_str):
     pdf.line(10, pdf.get_y(), 200, pdf.get_y())
     pdf.ln(5)
     pdf.image(p_evol, x=15, w=180)
+    pdf.ln(100)
     
+    # CUADRO DE CONCLUSIONES
+    pdf.set_font('Helvetica', 'B', 12)
+    pdf.set_fill_color(240, 245, 250)
+    pdf.cell(0, 8, sanitizar_texto(" CONCLUSIONES Y RECOMENDACIONES EJECUTIVAS"), 1, 1, 'L', True)
+    pdf.set_font('Helvetica', '', 10)
+    pdf.set_text_color(*C_DARK)
+    
+    if ico >= 90:
+        recomendacion = "El ecosistema operativo se encuentra en estado ESTABLE. Todas las métricas superan la línea base del 90%. Se recomienda mantener los protocolos de supervisión actuales y extender un reconocimiento al equipo operativo."
+    else:
+        peor_area = df_a.iloc[-1]['index'] if not df_a.empty else "N/A"
+        peor_causa = df_c.iloc[0]['index'] if not df_c.empty else "N/A"
+        recomendacion = f"Se requiere ATENCIÓN INMEDIATA para estabilizar el ICO institucional.\n\n"
+        recomendacion += f"1. ÁREA CRÍTICA: Enfocar recursos de supervisión de manera urgente en el área de '{peor_area}'.\n"
+        recomendacion += f"2. CAUSA RAÍZ: La falla principal que arrastra la calificación hacia abajo es el criterio de '{peor_causa}'.\n"
+        recomendacion += "3. ACCIÓN: Ejecutar medidas correctivas con el personal responsable de dicho indicador durante esta misma semana."
+        
+    pdf.multi_cell(0, 6, sanitizar_texto(recomendacion), 1, 'L')
+
     shutil.rmtree(temp_dir, ignore_errors=True)
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
@@ -304,7 +300,7 @@ def generar_pdf_nomina(df_nomina, df_incidencias, df_retardos, stats_kaizen, pro
 
     pdf = SunhavenPDF()
     pdf.titulo_header = "REPORTE EJECUTIVO DE BONOS E INCIDENCIAS"
-    pdf.cover_page("BONOS", "Periodo Evaluado", mes_str)
+    pdf.cover_page("NÓMINA Y RECURSOS HUMANOS", "Periodo Evaluado", mes_str)
     
     pdf.add_page()
     pdf.set_font('Helvetica', 'B', 14)
@@ -330,14 +326,35 @@ def generar_pdf_nomina(df_nomina, df_incidencias, df_retardos, stats_kaizen, pro
     pdf.ln(85)
     pdf.set_font('Helvetica', 'B', 10)
     pdf.set_text_color(*C_DARK)
-    pdf.cell(0, 6, sanitizar_texto("Colaboradores que NO participaron:"), 0, 1)
+    pdf.cell(0, 6, sanitizar_texto("Colaboradores de Enfermería que NO participaron:"), 0, 1)
     pdf.set_font('Helvetica', '', 10)
     for emp in stats_kaizen['lista_no']: pdf.cell(0, 5, sanitizar_texto(f"  - {emp}"), 0, 1)
+    
+    # CUADRO DE CONCLUSIONES KAIZEN
+    pdf.ln(10)
+    pdf.set_font('Helvetica', 'B', 12)
+    pdf.set_fill_color(240, 245, 250)
+    pdf.cell(0, 8, sanitizar_texto(" CONCLUSIONES Y RECOMENDACIONES EJECUTIVAS"), 1, 1, 'L', True)
+    pdf.set_font('Helvetica', '', 10)
+    
+    t_kz = stats_kaizen['curr_si'] + stats_kaizen['curr_no']
+    pct_kz = (stats_kaizen['curr_si'] / t_kz * 100) if t_kz > 0 else 0
+    rec_nom = f"1. PARTICIPACIÓN KAIZEN: El {pct_kz:.1f}% del personal entregó sus propuestas. "
+    if pct_kz < 80:
+        rec_nom += "Nivel bajo de cumplimiento. Se recomienda aplicar la deducción administrativa de inmediato a los omisos para fomentar la disciplina.\n\n"
+    else:
+        rec_nom += "Nivel de participación excelente.\n\n"
         
+    if not df_retardos.empty:
+        peor_emp = df_retardos['EMPLEADO'].value_counts().index[0]
+        rec_nom += f"2. PUNTUALIDAD: El colaborador con mayor reincidencia de retardos biométricos es '{peor_emp}'. Se recomienda citación para diálogo y acta administrativa en caso de continuar la tendencia."
+        
+    pdf.multi_cell(0, 6, sanitizar_texto(rec_nom), 1, 'L')
+
     pdf.add_page()
     pdf.set_font('Helvetica', 'B', 14)
     pdf.set_text_color(*C_NAVY)
-    pdf.cell(0, 8, sanitizar_texto("2. PROPUESTAS DE MEJORA"), 0, 1, 'L')
+    pdf.cell(0, 8, sanitizar_texto("2. PROPUESTAS DE MEJORA RECIBIDAS"), 0, 1, 'L')
     for prop in propuestas:
         pdf.set_fill_color(240, 245, 250)
         pdf.set_font('Helvetica', 'B', 10)
@@ -368,7 +385,7 @@ def generar_pdf_rondines(df_resumen, escaneos_totales, alertas_fraude, fecha_str
 
     pdf = SunhavenPDF()
     pdf.titulo_header = "REPORTE DE AUDITORÍA - RONDINES NOCTURNOS"
-    pdf.cover_page("SUPERVISIÓN Y CUIDADO CONTINUO", "Auditoría Operativa", fecha_str)
+    pdf.cover_page("SUPERVISIÓN Y CUIDADO CONTINUO", "Auditoría Operativa y Antifraude", fecha_str)
     
     pdf.add_page()
     pdf.set_font('Helvetica', 'B', 14)
@@ -391,6 +408,27 @@ def generar_pdf_rondines(df_resumen, escaneos_totales, alertas_fraude, fecha_str
     pdf.ln(5)
     
     pdf.image(p_bar, x=30, w=150)
+    pdf.ln(80)
+
+    # CUADRO DE CONCLUSIONES RONDINES
+    pdf.set_font('Helvetica', 'B', 12)
+    pdf.set_fill_color(240, 245, 250)
+    pdf.cell(0, 8, sanitizar_texto(" CONCLUSIONES Y RECOMENDACIONES EJECUTIVAS"), 1, 1, 'L', True)
+    pdf.set_font('Helvetica', '', 10)
+    
+    rec_ron = ""
+    if alertas_fraude > 0:
+        rec_ron += f"ALERTA DE AUDITORÍA: Se han detectado {alertas_fraude} escaneos realizados en menos de 60 segundos entre sí. Esto indica un fuerte indicio de llenado fraudulento de la bitácora desde un mismo dispositivo físico. Se exige cruzar estos horarios con las cámaras de vigilancia.\n\n"
+    
+    bajos = df_resumen[df_resumen['% Cumplimiento'] < 90]
+    if not bajos.empty:
+        nombres = ", ".join(bajos['Colaborador'].tolist())
+        rec_ron += f"DESEMPEÑO: Las siguientes enfermeras no alcanzaron la meta mínima del 90% en sus rondines: {nombres}. Se recomienda aplicar la sanción administrativa y dialogar para evitar negligencias nocturnas."
+    else:
+        rec_ron += "DESEMPEÑO: El equipo nocturno cumplió satisfactoriamente con la meta de rondas de seguridad establecidas."
+        
+    pdf.multi_cell(0, 6, sanitizar_texto(rec_ron), 1, 'L')
+
     shutil.rmtree(temp_dir, ignore_errors=True)
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
@@ -543,12 +581,16 @@ def main():
         st.markdown("### FILTROS")
         
         fecha_inicio, fecha_fin, mes_eval, anio_eval, file_asis = None, None, None, None, None
+        agrupacion_temporal = "Día" # Valor por defecto
         
         if modulo_activo in ["Dashboard de Operaciones", "Turno Nocturno"]:
             hoy = datetime.now()
             fechas = st.date_input("Rango de Análisis", [hoy - timedelta(days=30), hoy])
             if len(fechas) == 2: fecha_inicio, fecha_fin = fechas
             else: st.stop()
+            
+            if modulo_activo == "Dashboard de Operaciones":
+                agrupacion_temporal = st.selectbox("Agrupación Gráficas (Evolución):", ["Día", "Semana", "Mes", "Año"])
         else:
             mes_eval = st.selectbox("Mes", range(1, 13), index=datetime.now().month-1)
             anio_eval = st.number_input("Año", min_value=2020, max_value=2050, value=datetime.now().year)
@@ -570,7 +612,7 @@ def main():
 
         # Variables por defecto
         ico = 0
-        df_a, df_c, df_evol_base, df_ranking = pd.DataFrame(columns=['index', 'V']), pd.DataFrame(columns=['index', 'V']), pd.DataFrame(), pd.DataFrame()
+        df_a, df_c, df_evol_base, df_plot, df_ranking = pd.DataFrame(columns=['index', 'V']), pd.DataFrame(columns=['index', 'V']), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
         kpi = {}
 
         try:
@@ -624,6 +666,21 @@ def main():
             df_evol_base = df_evol_base.ffill().bfill().fillna(0)
             df_evol_base.index = pd.to_datetime(df_evol_base.index)
 
+            # Lógica de Agrupación Temporal Global (Para Pantalla y PDF)
+            if not df_evol_base.empty:
+                if agrupacion_temporal == "Semana":
+                    df_plot = df_evol_base.resample('W-MON').mean()
+                    df_plot.index = df_plot.index.strftime('Semana %W - %Y')
+                elif agrupacion_temporal == "Mes":
+                    df_plot = df_evol_base.resample('ME').mean()
+                    df_plot.index = df_plot.index.strftime('%Y-%m')
+                elif agrupacion_temporal == "Año":
+                    df_plot = df_evol_base.resample('YE').mean()
+                    df_plot.index = df_plot.index.strftime('%Y')
+                else:
+                    df_plot = df_evol_base.copy()
+                    df_plot.index = df_plot.index.strftime('%Y-%m-%d')
+
             p_noc = {enf: min((len(df_ron[(df_ron['Enfermera'] == enf) & (df_ron['Bloque'].notnull())][['Fecha', 'Bloque']].drop_duplicates()) / ((t_A if enf in ENFERMERAS_ROL_A else t_B)*3) * 100), 100) if ((t_A if enf in ENFERMERAS_ROL_A else t_B)*3) > 0 else 100 for enf in ENFERMERAS_NOCHE}
             v_noc = sum(p_noc.values()) / len(p_noc) if p_noc else 0
 
@@ -652,7 +709,7 @@ def main():
         
         with tabs_op[0]:
             if st.button("Generar Reporte de Operaciones (PDF)", type="primary"):
-                pdf_b = generar_pdf_dashboard_op(ico, "ESTABLE" if ico >= 90 else "ATENCIÓN REQUERIDA", df_a, df_c, df_evol_base, f"{fecha_inicio.strftime('%d/%m/%Y')} al {fecha_fin.strftime('%d/%m/%Y')}")
+                pdf_b = generar_pdf_dashboard_op(ico, "ESTABLE" if ico >= 90 else "ATENCIÓN REQUERIDA", df_a, df_c, df_plot, f"{fecha_inicio.strftime('%d/%m/%Y')} al {fecha_fin.strftime('%d/%m/%Y')}")
                 st.download_button("Descargar Archivo", data=pdf_b, file_name="Reporte_Operaciones.pdf", mime="application/pdf")
             
             if kpi:
@@ -677,23 +734,8 @@ def main():
                     st.plotly_chart(fig_c, use_container_width=True)
 
         with tabs_op[1]:
-            st.write("### Evolución Histórica de Todos los Departamentos")
-            agrupacion = st.radio("Seleccionar Agrupación Temporal:", ["Día", "Semana", "Mes", "Año"], horizontal=True)
-            
-            if not df_evol_base.empty:
-                if agrupacion == "Semana":
-                    df_plot = df_evol_base.resample('W-MON').mean()
-                    df_plot.index = df_plot.index.strftime('Semana %W - %Y')
-                elif agrupacion == "Mes":
-                    df_plot = df_evol_base.resample('ME').mean()
-                    df_plot.index = df_plot.index.strftime('%Y-%m')
-                elif agrupacion == "Año":
-                    df_plot = df_evol_base.resample('YE').mean()
-                    df_plot.index = df_plot.index.strftime('%Y')
-                else:
-                    df_plot = df_evol_base.copy()
-                    df_plot.index = df_plot.index.strftime('%Y-%m-%d')
-
+            st.write(f"### Evolución Histórica de Todos los Departamentos ({agrupacion_temporal})")
+            if not df_plot.empty:
                 fig_evol = px.line(df_plot, labels={"value": "Cumplimiento (%)", "index": "Periodo", "variable": "Área Operativa"}, markers=True)
                 fig_evol.add_hline(y=90, line_dash="dot", line_color="red", annotation_text="Línea Base 90%")
                 st.plotly_chart(fig_evol, use_container_width=True)
@@ -838,7 +880,7 @@ def main():
             datos_noc.append({"Colaborador": enf, "Turnos Meta": turnos_m, "Meta Rondas": rondas_m, "Rondas Real.": rondas_r, "% Cumplimiento": pct})
         
         df_resumen = pd.DataFrame(datos_noc)
-        v_noc = df_resumen['% Cumplimiento'].mean()
+        v_noc = df_resumen['% Cumplimiento'].mean() if not df_resumen.empty else 0
 
         st.markdown(f"""<div class='exec-header'>
             <div><p style='margin:0; font-weight:700; color:#64748b; font-size:12px; text-transform:uppercase;'>Cumplimiento de Seguridad</p>
