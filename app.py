@@ -75,6 +75,7 @@ ENFERMERAS_LISTA = [
 ]
 
 EXCEPCIONES_KAIZEN = ["Yareli Yamile Luquin Puga", "Blanca Aracely Figueroa Marroquín", "Guadalupe Georgia Lopez Ceja"]
+CHECADORES_ESPECIALES = ["CESAR", "MONI", "MARTHACASTRO", "HUGO"] 
 HORA_ENTRADA_DIA, HORA_ENTRADA_NOCHE = datetime.strptime("08:15", "%H:%M").time(), datetime.strptime("20:15", "%H:%M").time()
 TIPO_INCIDENCIAS = ["Falta de uniforme (Leve)", "Uso de celular (Leve)", "No hacer entrega (Leve)", "No hacer ronda (Leve)", "Salida anticipada (Leve)", "AGRESIÓN / CONFLICTO (Grave)", "REGLA DE ORO (Grave)"]
 
@@ -164,14 +165,12 @@ class SunhavenPDF(FPDF):
         self.cell(0, 6, sanitizar_texto('Ing. Larry Beresford'), 0, 1, 'C')
 
 # ==========================================
-# 2. MOTOR DE DIAGNÓSTICO EJECUTIVO (EL "CEREBRO")
+# 2. MOTORES DE DIAGNÓSTICO (CONCLUSIONES)
 # ==========================================
 def generar_dictamen_operativo(ico, df_a, df_c):
-    """Genera recomendaciones automáticas basadas en los datos duros."""
     if df_a.empty or df_c.empty:
-        return "No hay datos suficientes para generar un dictamen.", "No hay datos suficientes para generar un dictamen."
+        return "No hay datos suficientes para generar un dictamen.", "No hay datos suficientes."
 
-    # Ordenar para encontrar a los "culpables"
     areas_bajas = df_a[df_a['V'] < 90].sort_values('V', ascending=True)
     causas_bajas = df_c[df_c['V'] < 90].sort_values('V', ascending=True)
 
@@ -181,24 +180,56 @@ def generar_dictamen_operativo(ico, df_a, df_c):
     elif ico >= 80:
         peor_area = areas_bajas.iloc[0]['index'] if not areas_bajas.empty else "N/A"
         peor_causa = causas_bajas.iloc[0]['index'] if not causas_bajas.empty else "N/A"
-        
         html = f"<strong>[ ALERTA PREVENTIVA ]</strong> El rendimiento general está decayendo.<br><br>1. <strong>Foco Primario:</strong> El departamento de '{peor_area}' muestra debilidad operativa.<br>2. <strong>Causa Principal:</strong> El criterio de '{peor_causa}' necesita revisión.<br>3. <strong>Acción Sugerida:</strong> Agendar reunión de calibración con el personal del turno afectado."
-        
-        pdf_text = f"ALERTA PREVENTIVA: El rendimiento general requiere ajustes antes de volverse crítico.\n\n"
-        pdf_text += f"1. Foco Primario: El departamento de '{peor_area}' presenta las métricas más bajas.\n"
-        pdf_text += f"2. Causa Principal: El criterio de '{peor_causa}' necesita revisión operativa.\n"
-        pdf_text += "3. Acción Sugerida: Se recomienda una sesión de retroalimentación (feedback) con el personal involucrado para estandarizar procesos."
+        pdf_text = f"ALERTA PREVENTIVA: El rendimiento general requiere ajustes antes de volverse crítico.\n\n1. Foco Primario: El departamento de '{peor_area}' presenta las métricas más bajas.\n2. Causa Principal: El criterio de '{peor_causa}' necesita revisión operativa.\n3. Acción Sugerida: Se recomienda una sesión de retroalimentación (feedback) con el personal involucrado."
     else:
         peor_area = areas_bajas.iloc[0]['index'] if not areas_bajas.empty else "N/A"
         peor_causa = causas_bajas.iloc[0]['index'] if not causas_bajas.empty else "N/A"
-        
-        html = f"<strong>[ ATENCIÓN CRÍTICA ]</strong> Existen deficiencias serias en la operación.<br><br>1. <strong>ÁREA ROJA:</strong> El departamento de '{peor_area}' requiere intervención gerencial urgente.<br>2. <strong>FALLA SISTÉMICA:</strong> El incumplimiento en '{peor_causa}' está arrastrando la calificación.<br>3. <strong>ACCIÓN OBLIGATORIA:</strong> Ejecutar plan de corrección inmediato y levantar actas administrativas si aplica."
-        
-        pdf_text = f"ATENCIÓN CRÍTICA: Se detectan deficiencias operativas que requieren intervención gerencial inmediata.\n\n"
-        pdf_text += f"1. ÁREA ROJA: El departamento de '{peor_area}' muestra un rendimiento deficiente que compromete la calidad del servicio.\n"
-        pdf_text += f"2. FALLA SISTÉMICA: El incumplimiento en el criterio de '{peor_causa}' es la principal causa del rezago.\n"
-        pdf_text += "3. ACCIÓN OBLIGATORIA: Implementar un plan de choque esta semana. Se sugiere mayor presencia de supervisión física y el levantamiento de reportes/actas si se comprueba negligencia."
+        html = f"<strong>[ ATENCIÓN CRÍTICA ]</strong> Existen deficiencias serias en la operación.<br><br>1. <strong>ÁREA ROJA:</strong> El departamento de '{peor_area}' requiere intervención gerencial urgente.<br>2. <strong>FALLA SISTÉMICA:</strong> El incumplimiento en '{peor_causa}' está arrastrando la calificación.<br>3. <strong>ACCIÓN OBLIGATORIA:</strong> Ejecutar plan de corrección inmediato."
+        pdf_text = f"ATENCIÓN CRÍTICA: Se detectan deficiencias operativas que requieren intervención gerencial inmediata.\n\n1. ÁREA ROJA: El departamento de '{peor_area}' muestra un rendimiento deficiente.\n2. FALLA SISTÉMICA: El incumplimiento en el criterio de '{peor_causa}' es la principal causa del rezago.\n3. ACCIÓN OBLIGATORIA: Implementar un plan de choque esta semana. Se sugiere mayor presencia de supervisión física."
 
+    return html, pdf_text
+
+def generar_dictamen_nomina(stats_kaizen, df_retardos):
+    t_kz = stats_kaizen['curr_si'] + stats_kaizen['curr_no']
+    pct_kz = (stats_kaizen['curr_si'] / t_kz * 100) if t_kz > 0 else 0
+    
+    html, pdf_text = "", ""
+    
+    if pct_kz < 80:
+        html += f"<strong>[ MEJORA CONTINUA (KAIZEN) ]</strong> El {pct_kz:.1f}% del personal entregó sus propuestas. Nivel bajo de cumplimiento. Se recomienda aplicar deducción administrativa a los omisos.<br><br>"
+        pdf_text += f"1. PARTICIPACIÓN KAIZEN: El {pct_kz:.1f}% del personal entregó sus propuestas. Nivel bajo de cumplimiento. Se recomienda aplicar la deducción administrativa de inmediato a los omisos para fomentar la disciplina.\n\n"
+    else:
+        html += f"<strong>[ MEJORA CONTINUA (KAIZEN) ]</strong> El {pct_kz:.1f}% del personal entregó sus propuestas. Nivel de participación excelente.<br><br>"
+        pdf_text += f"1. PARTICIPACIÓN KAIZEN: El {pct_kz:.1f}% del personal entregó sus propuestas. Nivel de participación excelente. Se sugiere reconocer públicamente las mejores propuestas.\n\n"
+        
+    if not df_retardos.empty:
+        peor_emp = df_retardos['EMPLEADO'].value_counts().index[0]
+        max_ret = df_retardos['EMPLEADO'].value_counts().iloc[0]
+        html += f"<strong>[ PUNTUALIDAD ]</strong> El colaborador con mayor reincidencia de retardos biométricos es '{peor_emp}' ({max_ret} retardos). Se recomienda citación para diálogo y acta administrativa."
+        pdf_text += f"2. PUNTUALIDAD: El colaborador con mayor reincidencia de retardos biométricos es '{peor_emp}' con {max_ret} retardos. Se recomienda citación para diálogo y acta administrativa en caso de continuar la tendencia."
+    else:
+        html += "<strong>[ PUNTUALIDAD ]</strong> Excelente puntualidad general en este periodo. No hay reincidencias críticas."
+        pdf_text += "2. PUNTUALIDAD: Excelente puntualidad general en este periodo. No hay reincidencias críticas."
+        
+    return html, pdf_text
+
+def generar_dictamen_rondines(alertas_fraude, df_resumen):
+    html, pdf_text = "", ""
+    
+    if alertas_fraude > 0:
+        html += f"<strong>[ ALERTA ANTIFRAUDE ]</strong> Se han detectado {alertas_fraude} escaneos realizados en menos de 60 segundos entre sí. Cruzar horarios con cámaras de vigilancia.<br><br>"
+        pdf_text += f"ALERTA DE AUDITORÍA: Se han detectado {alertas_fraude} escaneos realizados en menos de 60 segundos entre sí. Esto indica un fuerte indicio de llenado fraudulento de la bitácora desde un mismo dispositivo físico. Se exige cruzar estos horarios con las cámaras de vigilancia.\n\n"
+    
+    bajos = df_resumen[df_resumen['% Cumplimiento'] < 90]
+    if not bajos.empty:
+        nombres = ", ".join(bajos['Colaborador'].tolist())
+        html += f"<strong>[ DESEMPEÑO INSUFICIENTE ]</strong> Las siguientes enfermeras no alcanzaron la meta mínima del 90% en sus rondines: {nombres}. Se recomienda sanción administrativa."
+        pdf_text += f"DESEMPEÑO: Las siguientes enfermeras no alcanzaron la meta mínima del 90% en sus rondines: {nombres}. Se recomienda aplicar la sanción administrativa y dialogar para evitar negligencias nocturnas."
+    else:
+        html += "<strong>[ DESEMPEÑO ÓPTIMO ]</strong> El equipo nocturno cumplió satisfactoriamente con la meta de rondas de seguridad."
+        pdf_text += "DESEMPEÑO: El equipo nocturno cumplió satisfactoriamente con la meta de rondas de seguridad establecidas."
+        
     return html, pdf_text
 
 
@@ -230,8 +261,7 @@ def generar_pdf_dashboard_op(ico, estatus, df_a, df_c, df_evol, agrupacion, fech
     
     plt.figure(figsize=(9, 4))
     if not df_evol.empty:
-        for col in df_evol.columns:
-            plt.plot(df_evol.index, df_evol[col], marker='o', label=col)
+        for col in df_evol.columns: plt.plot(df_evol.index, df_evol[col], marker='o', label=col)
         plt.axhline(90, color='red', linestyle='--')
         plt.title(f'Evolución Histórica Sincronizada ({agrupacion})', fontsize=10, fontweight='bold')
         plt.xticks(rotation=45, ha='right', fontsize=8)
@@ -282,7 +312,6 @@ def generar_pdf_dashboard_op(ico, estatus, df_a, df_c, df_evol, agrupacion, fech
     pdf.image(p_evol, x=15, w=180)
     pdf.ln(100)
     
-    # CUADRO DE CONCLUSIONES Y RECOMENDACIONES
     pdf.set_font('Helvetica', 'B', 12)
     pdf.set_fill_color(240, 245, 250)
     pdf.cell(0, 8, sanitizar_texto(" CONCLUSIONES Y RECOMENDACIONES EJECUTIVAS"), 1, 1, 'L', True)
@@ -293,7 +322,7 @@ def generar_pdf_dashboard_op(ico, estatus, df_a, df_c, df_evol, agrupacion, fech
     shutil.rmtree(temp_dir, ignore_errors=True)
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
-def generar_pdf_nomina(df_nomina, df_incidencias, df_retardos, stats_kaizen, propuestas, mes_str):
+def generar_pdf_nomina(df_nomina, df_incidencias, df_retardos, stats_kaizen, propuestas, mes_str, pdf_dictamen):
     temp_dir = os.path.join(os.path.dirname(__file__), f'temp_img_{uuid.uuid4().hex}')
     os.makedirs(temp_dir, exist_ok=True)
     
@@ -345,15 +374,34 @@ def generar_pdf_nomina(df_nomina, df_incidencias, df_retardos, stats_kaizen, pro
     pdf.add_page()
     pdf.set_font('Helvetica', 'B', 14)
     pdf.set_text_color(*C_NAVY)
-    pdf.cell(0, 8, sanitizar_texto("2. TOTAL A PAGAR"), 0, 1, 'L')
+    pdf.cell(0, 8, sanitizar_texto("2. TOTAL A PAGAR POR RUBRO"), 0, 1, 'L')
     datos_nomina = [[row['COLABORADOR'], f"${row['$ PUNTUAL']}", f"${row['$ UNIFORM']}", f"${row['$ ADMIN']}", f"${row['TOTAL A PAGAR']}"] for _, row in df_nomina.iterrows()]
     tabla_centrada(pdf, ["COLABORADOR", "PUNTUALIDAD", "UNIFORME", "ADMIN", "TOTAL"], datos_nomina, [70, 25, 25, 25, 25])
     
+    # --- SECCIÓN NUEVA: DESGLOSE DETALLADO POR EMPLEADO ---
+    pdf.add_page()
+    pdf.set_font('Helvetica', 'B', 14)
+    pdf.set_text_color(*C_NAVY)
+    pdf.cell(0, 8, sanitizar_texto("3. DESGLOSE HISTÓRICO POR EMPLEADO"), 0, 1, 'L')
+    pdf.set_draw_color(*C_SUN)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(5)
+    
+    for emp in sorted(df_nomina['COLABORADOR'].unique()):
+        df_emp_inc = df_incidencias[df_incidencias['EMPLEADO'] == emp]
+        if not df_emp_inc.empty:
+            pdf.set_font('Helvetica', 'B', 10)
+            pdf.set_text_color(*C_SUN)
+            pdf.cell(0, 6, sanitizar_texto(f"Resumen de Incidencias: {emp}"), 0, 1, 'L')
+            datos_emp = [[r['FECHA'], r['INCIDENCIA'], r['OBSERVACION'][:60]] for _, r in df_emp_inc.iterrows()]
+            tabla_centrada(pdf, ["FECHA", "INCIDENCIA", "DETALLE / MOTIVO"], datos_emp, [30, 50, 100])
+            pdf.ln(4)
+            
     pdf.add_page()
     pdf.titulo_header = "REPORTE EJECUTIVO DE MEJORA CONTINUA (KAIZEN)"
     pdf.set_font('Helvetica', 'B', 14)
     pdf.set_text_color(*C_NAVY)
-    pdf.cell(0, 8, sanitizar_texto("1. ESTADÍSTICAS DE PARTICIPACIÓN Y TENDENCIA"), 0, 1, 'L')
+    pdf.cell(0, 8, sanitizar_texto("4. ESTADÍSTICAS DE PARTICIPACIÓN Y TENDENCIA"), 0, 1, 'L')
     pdf.image(p_kz, x=20, w=170)
     pdf.ln(85)
     pdf.set_font('Helvetica', 'B', 10)
@@ -362,31 +410,17 @@ def generar_pdf_nomina(df_nomina, df_incidencias, df_retardos, stats_kaizen, pro
     pdf.set_font('Helvetica', '', 10)
     for emp in stats_kaizen['lista_no']: pdf.cell(0, 5, sanitizar_texto(f"  - {emp}"), 0, 1)
     
-    # CUADRO DE CONCLUSIONES KAIZEN Y NÓMINA
     pdf.ln(10)
     pdf.set_font('Helvetica', 'B', 12)
     pdf.set_fill_color(240, 245, 250)
     pdf.cell(0, 8, sanitizar_texto(" CONCLUSIONES Y RECOMENDACIONES EJECUTIVAS"), 1, 1, 'L', True)
     pdf.set_font('Helvetica', '', 10)
-    
-    t_kz = stats_kaizen['curr_si'] + stats_kaizen['curr_no']
-    pct_kz = (stats_kaizen['curr_si'] / t_kz * 100) if t_kz > 0 else 0
-    rec_nom = f"1. PARTICIPACIÓN KAIZEN: El {pct_kz:.1f}% del personal entregó sus propuestas. "
-    if pct_kz < 80:
-        rec_nom += "Nivel bajo de cumplimiento. Se recomienda aplicar la deducción administrativa de inmediato a los omisos para fomentar la disciplina.\n\n"
-    else:
-        rec_nom += "Nivel de participación excelente. Se sugiere reconocer publicamente las mejores propuestas.\n\n"
-        
-    if not df_retardos.empty:
-        peor_emp = df_retardos['EMPLEADO'].value_counts().index[0]
-        rec_nom += f"2. PUNTUALIDAD: El colaborador con mayor reincidencia de retardos biométricos es '{peor_emp}'. Se recomienda citación para diálogo y acta administrativa en caso de continuar la tendencia."
-        
-    pdf.multi_cell(0, 6, sanitizar_texto(rec_nom), 1, 'L')
+    pdf.multi_cell(0, 6, sanitizar_texto(pdf_dictamen), 1, 'L')
 
     pdf.add_page()
     pdf.set_font('Helvetica', 'B', 14)
     pdf.set_text_color(*C_NAVY)
-    pdf.cell(0, 8, sanitizar_texto("2. PROPUESTAS DE MEJORA RECIBIDAS"), 0, 1, 'L')
+    pdf.cell(0, 8, sanitizar_texto("5. PROPUESTAS DE MEJORA RECIBIDAS"), 0, 1, 'L')
     for prop in propuestas:
         pdf.set_fill_color(240, 245, 250)
         pdf.set_font('Helvetica', 'B', 10)
@@ -402,7 +436,7 @@ def generar_pdf_nomina(df_nomina, df_incidencias, df_retardos, stats_kaizen, pro
     shutil.rmtree(temp_dir, ignore_errors=True)
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
-def generar_pdf_rondines(df_resumen, escaneos_totales, alertas_fraude, fecha_str):
+def generar_pdf_rondines(df_resumen, escaneos_totales, alertas_fraude, fecha_str, pdf_dictamen):
     temp_dir = os.path.join(os.path.dirname(__file__), f'temp_img_{uuid.uuid4().hex}')
     os.makedirs(temp_dir, exist_ok=True)
     
@@ -442,24 +476,11 @@ def generar_pdf_rondines(df_resumen, escaneos_totales, alertas_fraude, fecha_str
     pdf.image(p_bar, x=30, w=150)
     pdf.ln(80)
 
-    # CUADRO DE CONCLUSIONES RONDINES
     pdf.set_font('Helvetica', 'B', 12)
     pdf.set_fill_color(240, 245, 250)
     pdf.cell(0, 8, sanitizar_texto(" CONCLUSIONES Y RECOMENDACIONES EJECUTIVAS"), 1, 1, 'L', True)
     pdf.set_font('Helvetica', '', 10)
-    
-    rec_ron = ""
-    if alertas_fraude > 0:
-        rec_ron += f"ALERTA DE AUDITORÍA: Se han detectado {alertas_fraude} escaneos realizados en menos de 60 segundos entre sí. Esto indica un fuerte indicio de llenado fraudulento de la bitácora desde un mismo dispositivo físico. Se exige cruzar estos horarios con las cámaras de vigilancia.\n\n"
-    
-    bajos = df_resumen[df_resumen['% Cumplimiento'] < 90]
-    if not bajos.empty:
-        nombres = ", ".join(bajos['Colaborador'].tolist())
-        rec_ron += f"DESEMPEÑO: Las siguientes enfermeras no alcanzaron la meta mínima del 90% en sus rondines: {nombres}. Se recomienda aplicar sanción administrativa."
-    else:
-        rec_ron += "DESEMPEÑO: El equipo nocturno cumplió satisfactoriamente con la meta de rondas de seguridad establecidas."
-        
-    pdf.multi_cell(0, 6, sanitizar_texto(rec_ron), 1, 'L')
+    pdf.multi_cell(0, 6, sanitizar_texto(pdf_dictamen), 1, 'L')
 
     shutil.rmtree(temp_dir, ignore_errors=True)
     return pdf.output(dest='S').encode('latin-1', 'replace')
@@ -496,56 +517,25 @@ def generar_pdf_legal_bytes(categorias_dict, checks_dict, porcentaje):
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
 # ==========================================
-# 3. ETL Y CÁLCULOS
+# 4. DEPURACIÓN DEL BIOMÉTRICO (ETL)
 # ==========================================
-@st.cache_data(ttl=600)
-def cargar_datos_operaciones():
-    try:
-        gc = gspread.service_account_from_dict(json.loads(st.secrets["GOOGLE_JSON"])) if "GOOGLE_JSON" in st.secrets else gspread.service_account(filename=PATH_CREDS)
-        dfs = {
-            "n": pd.DataFrame(gc.open_by_url("https://docs.google.com/spreadsheets/d/10wWKmjsyj501OXaFWs7Rd_XF_2R-H0YzV66B2K6HvPE/edit").get_worksheet(0).get_all_records()),
-            "v": pd.DataFrame(gc.open_by_url("https://docs.google.com/spreadsheets/d/1C1AVmNXG0ggRekB1HF4_IhX-NGiTkwzgvZn2Z31rCsc/edit").get_worksheet(0).get_all_records()),
-            "s": pd.DataFrame(gc.open_by_url("https://docs.google.com/spreadsheets/d/1wdP3mbW_k4a90ubPG-ZQy8FvfAZiwKnhPjCj1BZHcBs/edit").get_worksheet(0).get_all_records())
-        }
-        for k in dfs: dfs[k].columns = dfs[k].columns.str.strip().str.replace('\n', ' ')
-        return dfs
-    except Exception as e: return None
-
-@st.cache_data(ttl=600)
-def fetch_kaizen_data():
-    try:
-        gc = gspread.service_account_from_dict(json.loads(st.secrets["GOOGLE_JSON"])) if "GOOGLE_JSON" in st.secrets else gspread.service_account(filename=PATH_CREDS)
-        return pd.DataFrame(gc.open("SUNHAVEN_KAIZEN (Respuestas)").get_worksheet(0).get_all_records())
-    except: return pd.DataFrame()
-
-def cargar_bitacora():
-    if os.path.exists(PATH_BITACORA): return pd.read_csv(PATH_BITACORA)
-    df = pd.DataFrame(columns=["FECHA", "EMPLEADO", "INCIDENCIA", "OBSERVACION"])
-    os.makedirs(os.path.dirname(PATH_BITACORA), exist_ok=True)
-    df.to_csv(PATH_BITACORA, index=False)
-    return df
-
-def guardar_incidencia(fecha, empleado, incidencia, obs):
-    df = cargar_bitacora()
-    df = pd.concat([df, pd.DataFrame([{"FECHA": fecha, "EMPLEADO": empleado, "INCIDENCIA": incidencia, "OBSERVACION": obs}])], ignore_index=True)
-    df.to_csv(PATH_BITACORA, index=False)
-
-def borrar_incidencia(index):
-    df = cargar_bitacora()
-    df.drop(index).to_csv(PATH_BITACORA, index=False)
-
 def limpiar_biometrico(file_bytes):
-    ws = load_workbook(io.BytesIO(file_bytes), data_only=True).active
+    wb = load_workbook(io.BytesIO(file_bytes), data_only=True)
+    ws = wb.active
     datos, emp = [], None
     for row in ws.iter_rows(values_only=True):
         row_str = [str(cell) if cell is not None else "" for cell in row]
-        if "ID:" in row_str[0]:
-            try: emp = row_str[row_str.index("Nombre:") + 2].strip()
-            except ValueError: pass
+        if any("ID:" in str(c) for c in row_str):
+            for i, c in enumerate(row_str):
+                if "Nombre:" in str(c):
+                    try: emp = row_str[i+2].strip()
+                    except IndexError: pass
+                    break
         elif emp and any(":" in str(cell) for cell in row_str):
             for dia, celda in enumerate(row_str, 1):
                 celda = str(celda).strip()
-                if len(celda) >= 5 and ":" in celda: datos.append({"Checador": emp, "Día": dia, "Entrada": celda[:5]})
+                if len(celda) >= 5 and ":" in celda: 
+                    datos.append({"Checador": emp, "Día": dia, "Entrada": celda[:5]})
             emp = None
     return pd.DataFrame(datos)
 
@@ -557,10 +547,20 @@ def procesar_super_nomina(df_bio, df_bitacora, df_kaizen, mes_num, anio_num):
             if ch in EMPLEADOS_DB:
                 nm = EMPLEADOS_DB[ch]
                 ent = row['Entrada']
+                if ch in CHECADORES_ESPECIALES: continue
                 try:
                     he = datetime.strptime(ent, "%H:%M").time()
                     lim = HORA_ENTRADA_NOCHE if nm in ENFERMERAS_NOCHE else HORA_ENTRADA_DIA
-                    if he > lim: ret_list.append({"FECHA": f"{anio_num}-{mes_num:02d}-{row['Día']:02d}", "EMPLEADO": nm, "INCIDENCIA": "Retardo Biométrico", "OBSERVACION": f"Entró a las {ent}"})
+                    if he > lim: 
+                        dt_ent = datetime.combine(datetime.today(), he)
+                        dt_lim = datetime.combine(datetime.today(), lim)
+                        min_tarde = int((dt_ent - dt_lim).total_seconds() / 60)
+                        ret_list.append({
+                            "FECHA": f"{anio_num}-{mes_num:02d}-{row['Día']:02d}", 
+                            "EMPLEADO": nm, 
+                            "INCIDENCIA": "Retardo Biométrico", 
+                            "OBSERVACION": f"Entró a las {ent} ({min_tarde} min tarde)"
+                        })
                 except: pass
     df_ret = pd.DataFrame(ret_list)
     
@@ -602,10 +602,9 @@ def procesar_super_nomina(df_bio, df_bitacora, df_kaizen, mes_num, anio_num):
     return pd.DataFrame(nomina), df_todas, df_ret, stats_k, props
 
 # ==========================================
-# 4. APLICACIÓN PRINCIPAL (ENRUTADOR)
+# 5. APLICACIÓN PRINCIPAL (ENRUTADOR)
 # ==========================================
 def main():
-    # --- SIDEBAR LIMPIA Y DINÁMICA ---
     with st.sidebar:
         st.markdown("### NAVEGADOR EMPRESARIAL")
         modulo_activo = st.radio("Seleccione el Módulo:", ["Dashboard de Operaciones", "Gestión de Nómina", "Turno Nocturno"], label_visibility="collapsed")
@@ -613,7 +612,7 @@ def main():
         st.markdown("### FILTROS")
         
         fecha_inicio, fecha_fin, mes_eval, anio_eval, file_asis = None, None, None, None, None
-        agrupacion_temporal = "Día" # Valor por defecto
+        agrupacion_temporal = "Día"
         
         if modulo_activo in ["Dashboard de Operaciones", "Turno Nocturno"]:
             hoy = datetime.now()
@@ -642,7 +641,6 @@ def main():
         if data is None: st.stop()
         df_ron, df_rop, df_serv = data["n"].copy(), data["v"].copy(), data["s"].copy()
 
-        # Variables por defecto
         ico = 0
         df_a, df_c, df_evol_base, df_plot, df_ranking = pd.DataFrame(columns=['index', 'V']), pd.DataFrame(columns=['index', 'V']), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
         kpi = {}
@@ -730,7 +728,6 @@ def main():
         except Exception as e:
             st.error(f"Error procesando operaciones: {e}")
 
-        # GENERACIÓN DEL DICTAMEN INTELIGENTE
         html_dictamen, pdf_dictamen = generar_dictamen_operativo(ico, df_a, df_c)
 
         st.markdown(f"""<div class='exec-header'>
@@ -739,13 +736,9 @@ def main():
             <div style='text-align:right;'><p style='margin:0; font-weight:700; color:#64748b; font-size:12px; text-transform:uppercase;'>ICO Maestro</p>
             <h1 style='margin:0; font-size:48px;'>{ico:.1f}%</h1></div></div>""", unsafe_allow_html=True)
 
-        # MOSTRAR EL DICTAMEN EN PANTALLA
-        st.markdown(f"""
-            <div class='dictamen-box'>
+        st.markdown(f"""<div class='dictamen-box'>
                 <h4 class='dictamen-title'>Dictamen y Recomendaciones Ejecutivas</h4>
-                <p class='dictamen-text'>{html_dictamen}</p>
-            </div>
-        """, unsafe_allow_html=True)
+                <p class='dictamen-text'>{html_dictamen}</p></div>""", unsafe_allow_html=True)
 
         tabs_op = st.tabs(["Tablero de Control", "Evolución Temporal", "Rendimiento Individual", "Blindaje Legal", "Data Cruda"])
         
@@ -781,13 +774,10 @@ def main():
                 fig_evol = px.line(df_plot, labels={"value": "Cumplimiento (%)", "index": "Periodo", "variable": "Área Operativa"}, markers=True)
                 fig_evol.add_hline(y=90, line_dash="dot", line_color="red", annotation_text="Línea Base 90%")
                 st.plotly_chart(fig_evol, use_container_width=True)
-            else:
-                st.info("No hay datos suficientes para mostrar la evolución temporal.")
 
         with tabs_op[2]:
             st.write("### Rendimiento Detallado por Personal")
             if not df_ranking.empty: st.dataframe(df_ranking, use_container_width=True)
-            else: st.info("No hay datos de rendimiento individual para este periodo.")
 
         with tabs_op[3]:
             st.write("### Auditoría y Blindaje Institucional")
@@ -845,7 +835,7 @@ def main():
             with sub3: st.dataframe(df_ron, use_container_width=True)
 
     # ---------------------------------------------------------
-    # MÓDULO 2: GESTIÓN DE NÓMINA
+    # MÓDULO 2: GESTIÓN DE NÓMINA (CON DESGLOSE POR EMPLEADO)
     # ---------------------------------------------------------
     elif modulo_activo == "Gestión de Nómina":
         st.title("Gestión de Nómina y Mejora Continua")
@@ -879,29 +869,25 @@ def main():
                 m_str = f"{mes_eval:02d}/{anio_eval}"
                 st.markdown(f"<h1 style='color:{HEX_GREEN};'>Total a Dispersar: ${df_n['TOTAL A PAGAR'].sum():,}</h1>", unsafe_allow_html=True)
                 
-                # CUADRO DE DICTAMEN EN PANTALLA
-                t_kz = s_k['curr_si'] + s_k['curr_no']
-                pct_kz = (s_k['curr_si'] / t_kz * 100) if t_kz > 0 else 0
-                rec_nom = f"<strong>[ MEJORA CONTINUA (KAIZEN) ]</strong> El {pct_kz:.1f}% del personal entregó sus propuestas. "
-                if pct_kz < 80:
-                    rec_nom += "Nivel bajo de cumplimiento. Se recomienda aplicar la deducción administrativa de inmediato a los omisos para fomentar la disciplina.<br><br>"
-                else:
-                    rec_nom += "Nivel de participación excelente. Se sugiere reconocer publicamente las mejores propuestas.<br><br>"
-                    
-                if not df_r.empty:
-                    peor_emp = df_r['EMPLEADO'].value_counts().index[0]
-                    rec_nom += f"<strong>[ PUNTUALIDAD ]</strong> El colaborador con mayor reincidencia de retardos biométricos es '{peor_emp}'. Se recomienda citación para diálogo y acta administrativa en caso de continuar la tendencia."
+                html_dictamen, pdf_dictamen = generar_dictamen_nomina(s_k, df_r)
                 
-                st.markdown(f"""
-                    <div class='dictamen-box'>
+                st.markdown(f"""<div class='dictamen-box'>
                         <h4 class='dictamen-title'>Dictamen y Recomendaciones Ejecutivas</h4>
-                        <p class='dictamen-text'>{rec_nom}</p>
-                    </div>
-                """, unsafe_allow_html=True)
+                        <p class='dictamen-text'>{html_dictamen}</p></div>""", unsafe_allow_html=True)
 
-                pdf_b = generar_pdf_nomina(df_n, df_i, df_r, s_k, p_k, m_str)
+                pdf_b = generar_pdf_nomina(df_n, df_i, df_r, s_k, p_k, m_str, pdf_dictamen)
                 st.download_button("Descargar Reporte de Nómina (PDF)", data=pdf_b, file_name=f"Nomina_{m_str.replace('/','_')}.pdf", mime="application/pdf")
+                
+                st.write("#### 1. Resumen General de Pagos por Rubro")
                 st.dataframe(df_n, use_container_width=True, hide_index=True)
+                
+                st.divider()
+                st.write("#### 2. Desglose Histórico e Individual de Incidencias")
+                for emp in sorted(df_n['COLABORADOR'].unique()):
+                    df_emp_inc = df_i[df_i['EMPLEADO'] == emp]
+                    if not df_emp_inc.empty:
+                        with st.expander(f"Ver incidencias de: {emp}"):
+                            st.dataframe(df_emp_inc[['FECHA', 'INCIDENCIA', 'OBSERVACION']], use_container_width=True, hide_index=True)
 
         with tabs_nom[2]:
             if 'nom' in st.session_state:
@@ -951,29 +937,15 @@ def main():
             <div style='text-align:right;'><p style='margin:0; font-weight:700; color:#64748b; font-size:12px; text-transform:uppercase;'>Promedio Global Nocturno</p>
             <h1 style='margin:0; font-size:48px;'>{v_noc:.1f}%</h1></div></div>""", unsafe_allow_html=True)
 
-        # CUADRO DE DICTAMEN EN PANTALLA
-        rec_ron = ""
-        if alertas > 0:
-            rec_ron += f"<strong>[ ALERTA ANTIFRAUDE ]</strong> Se han detectado {alertas} escaneos realizados en menos de 60 segundos entre sí. Fuerte indicio de llenado fraudulento. Cruzar horarios con cámaras de vigilancia.<br><br>"
-        
-        bajos = df_resumen[df_resumen['% Cumplimiento'] < 90]
-        if not bajos.empty:
-            nombres = ", ".join(bajos['Colaborador'].tolist())
-            rec_ron += f"<strong>[ DESEMPEÑO INSUFICIENTE ]</strong> Las siguientes enfermeras no alcanzaron la meta mínima del 90% en sus rondines: {nombres}. Se recomienda aplicar sanción administrativa."
-        else:
-            rec_ron += "<strong>[ DESEMPEÑO ÓPTIMO ]</strong> El equipo nocturno cumplió satisfactoriamente con la meta de rondas de seguridad."
-            
-        st.markdown(f"""
-            <div class='dictamen-box'>
+        html_dictamen, pdf_dictamen = generar_dictamen_rondines(alertas, df_resumen)
+        st.markdown(f"""<div class='dictamen-box'>
                 <h4 class='dictamen-title'>Dictamen y Recomendaciones Ejecutivas</h4>
-                <p class='dictamen-text'>{rec_ron}</p>
-            </div>
-        """, unsafe_allow_html=True)
+                <p class='dictamen-text'>{html_dictamen}</p></div>""", unsafe_allow_html=True)
 
         tabs_noc = st.tabs(["Auditoría de Rondas", "Log Antifraude"])
         with tabs_noc[0]:
             if st.button("Generar Reporte Rondines (PDF)", type="primary"):
-                pdf_b = generar_pdf_rondines(df_resumen, escaneos, alertas, f"{fecha_inicio.strftime('%d/%m/%Y')} al {fecha_fin.strftime('%d/%m/%Y')}")
+                pdf_b = generar_pdf_rondines(df_resumen, escaneos, alertas, f"{fecha_inicio.strftime('%d/%m/%Y')} al {fecha_fin.strftime('%d/%m/%Y')}", pdf_dictamen)
                 st.download_button("Descargar Archivo", data=pdf_b, file_name="Reporte_Rondines.pdf", mime="application/pdf")
             st.dataframe(df_resumen, use_container_width=True, hide_index=True)
         with tabs_noc[1]:
