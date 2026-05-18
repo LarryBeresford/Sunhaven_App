@@ -517,87 +517,223 @@ def generar_pdf_legal_bytes(categorias_dict, checks_dict, porcentaje):
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
 # ==========================================
-# 4. DEPURACIÓN DEL BIOMÉTRICO (ETL)
+# 4. ETL Y CÁLCULOS
 # ==========================================
+@st.cache_data(ttl=600)
+def cargar_datos_operaciones():
+    try:
+        if "GOOGLE_JSON" in st.secrets:
+            # Opción 1: Streamlit Cloud (Secretos)
+            creds_dict = json.loads(st.secrets["GOOGLE_JSON"])
+            gc = gspread.service_account_from_dict(creds_dict)
+        elif os.path.exists(PATH_CREDS):
+            # Opción 2: Local (Archivo JSON)
+            gc = gspread.service_account(filename=PATH_CREDS)
+        else:
+            st.error("No se encontraron credenciales de Google (Ni en Secrets ni archivo local).")
+            return None
+
+        # Conectar a las 3 hojas de cálculo
+        sheet_n = gc.open_by_url("https://docs.google.com/spreadsheets/d/10wWKmjsyj501OXaFWs7Rd_XF_2R-H0YzV66B2K6HvPE/edit")
+        sheet_v = gc.open_by_url("https://docs.google.com/spreadsheets/d/1C1AVmNXG0ggRekB1HF4_IhX-NGiTkwzgvZn2Z31rCsc/edit")
+        sheet_s = gc.open_by_url("https://docs.google.com/spreadsheets/d/1wdP3mbW_k4a90ubPG-ZQy8FvfAZiwKnhPjCj1BZHcBs/edit")
+
+        dfs = {
+            "n": pd.DataFrame(sheet_n.get_worksheet(0).get_all_records()),
+            "v": pd.DataFrame(sheet_v.get_worksheet(0).get_all_records()),
+            "s": pd.DataFrame(sheet_s.get_worksheet(0).get_all_records())
+        }
+        
+        # Limpiar nombres de columnas
+        for k in dfs:
+            if not dfs[k].empty:
+                dfs[k].columns = dfs[k].columns.str.strip().str.replace('\n', ' ')
+        return dfs
+        
+    except Exception as e:
+        # En caso de error (ej. cuota excedida, no hay internet), devolvemos None
+        print(f"Error interno en cargar_datos_operaciones: {e}")
+        return None
+
+@st.cache_data(ttl=600)
+def fetch_kaizen_data():
+    try:
+        if "GOOGLE_JSON" in st.secrets:
+            creds_dict = json.loads(st.secrets["GOOGLE_JSON"])
+            gc = gspread.service_account_from_dict(creds_dict)
+        elif os.path.exists(PATH_CREDS):
+            gc = gspread.service_account(filename=PATH_CREDS)
+        else:
+            return pd.DataFrame()
+
+        sheet = gc.open("SUNHAVEN_KAIZEN (Respuestas)")
+        return pd.DataFrame(sheet.get_worksheet(0).get_all_records())
+    except Exception as e:
+        print(f"Error interno en fetch_kaizen_data: {e}")
+        return pd.DataFrame()
+
+def cargar_bitacora():
+    if os.path.exists(PATH_BITACORA):
+        return pd.read_csv(PATH_BITACORA)
+    else:
+        df = pd.DataFrame(columns=["FECHA", "EMPLEADO", "INCIDENCIA", "OBSERVACION"])
+        # Asegurar que el directorio data/ exista
+        os.makedirs(os.path.dirname(PATH_BITACORA), exist_ok=True)
+        df.to_csv(PATH_BITACORA, index=False)
+        return df
+
+def guardar_incidencia(fecha, empleado, incidencia, obs):
+    df = cargar_bitacora()
+    nuevo_registro = pd.DataFrame([{"FECHA": fecha, "EMPLEADO": empleado, "INCIDENCIA": incidencia, "OBSERVACION": obs}])
+    df = pd.concat([df, nuevo_registro], ignore_index=True)
+    df.to_csv(PATH_BITACORA, index=False)
+
+def borrar_incidencia(index):
+    df = cargar_bitacora()
+    if 0 <= index < len(df):
+        df = df.drop(index)
+        df.to_csv(PATH_BITACORA, index=False)
+
 def limpiar_biometrico(file_bytes):
+    # Lector de Excel ROBUSTO para el checador
     wb = load_workbook(io.BytesIO(file_bytes), data_only=True)
     ws = wb.active
-    datos, emp = [], None
+    datos = []
+    emp = None
+    
     for row in ws.iter_rows(values_only=True):
         row_str = [str(cell) if cell is not None else "" for cell in row]
+        
+        # Buscar la fila que contiene el nombre del empleado
         if any("ID:" in str(c) for c in row_str):
             for i, c in enumerate(row_str):
                 if "Nombre:" in str(c):
-                    try: emp = row_str[i+2].strip()
-                    except IndexError: pass
+                    try: 
+                        emp = row_str[i+2].strip()
+                    except IndexError: 
+                        pass
                     break
+        
+        # Si ya tenemos un empleado, buscar las celdas con formato de hora (ej. "08:15")
         elif emp and any(":" in str(cell) for cell in row_str):
-            for dia, celda in enumerate(row_str, 1):
+            for dia, celda in enumerate(row_str, 1): # Empezamos a contar desde el día 1
                 celda = str(celda).strip()
                 if len(celda) >= 5 and ":" in celda: 
+                    # Tomamos los primeros 5 caracteres (HH:MM)
                     datos.append({"Checador": emp, "Día": dia, "Entrada": celda[:5]})
+            # Reiniciamos el empleado después de procesar su fila de horarios
             emp = None
+            
     return pd.DataFrame(datos)
 
 def procesar_super_nomina(df_bio, df_bitacora, df_kaizen, mes_num, anio_num):
     ret_list = []
+    
+    # 1. Procesar Biométrico (Retardos)
     if not df_bio.empty:
         for _, row in df_bio.iterrows():
             ch = str(row['Checador']).upper()
             if ch in EMPLEADOS_DB:
                 nm = EMPLEADOS_DB[ch]
                 ent = row['Entrada']
-                if ch in CHECADORES_ESPECIALES: continue
+                
+                # Ignorar empleados exentos
+                if ch in CHECADORES_ESPECIALES: 
+                    continue
+                    
                 try:
                     he = datetime.strptime(ent, "%H:%M").time()
                     lim = HORA_ENTRADA_NOCHE if nm in ENFERMERAS_NOCHE else HORA_ENTRADA_DIA
+                    
                     if he > lim: 
+                        # Calcular minutos tarde
                         dt_ent = datetime.combine(datetime.today(), he)
                         dt_lim = datetime.combine(datetime.today(), lim)
                         min_tarde = int((dt_ent - dt_lim).total_seconds() / 60)
+                        
                         ret_list.append({
                             "FECHA": f"{anio_num}-{mes_num:02d}-{row['Día']:02d}", 
                             "EMPLEADO": nm, 
                             "INCIDENCIA": "Retardo Biométrico", 
                             "OBSERVACION": f"Entró a las {ent} ({min_tarde} min tarde)"
                         })
-                except: pass
+                except Exception: 
+                    pass
+                    
     df_ret = pd.DataFrame(ret_list)
     
+    # 2. Procesar Kaizen
     part, nopart, props = [], [], []
     stats_k = {'curr_si':0, 'curr_no':0, 'prev_si':0, 'prev_no':0, 'lista_no':[]}
+    
     if not df_kaizen.empty:
+        # Asegurar formato de fecha
         df_kaizen['Marca temporal'] = pd.to_datetime(df_kaizen['Marca temporal'], dayfirst=True, errors='coerce')
+        
+        # Participación mes actual
         df_k_curr = df_kaizen[(df_kaizen['Marca temporal'].dt.month == mes_num) & (df_kaizen['Marca temporal'].dt.year == anio_num)]
         part = df_k_curr.iloc[:, 1].str.strip().unique().tolist()
         nopart = [e for e in ENFERMERAS_LISTA if e not in part and e not in EXCEPCIONES_KAIZEN]
         
+        # Participación mes anterior (para tendencia)
         m_prev = mes_num - 1 if mes_num > 1 else 12
         a_prev = anio_num if mes_num > 1 else anio_num - 1
         part_p = df_kaizen[(df_kaizen['Marca temporal'].dt.month == m_prev) & (df_kaizen['Marca temporal'].dt.year == a_prev)].iloc[:, 1].str.strip().unique().tolist()
-        stats_k = {'curr_si': len([e for e in ENFERMERAS_LISTA if e in part]), 'curr_no': len(nopart), 'prev_si': len([e for e in ENFERMERAS_LISTA if e in part_p]), 'prev_no': len([e for e in ENFERMERAS_LISTA if e not in part_p and e not in EXCEPCIONES_KAIZEN]), 'lista_no': nopart}
+        
+        stats_k = {
+            'curr_si': len([e for e in ENFERMERAS_LISTA if e in part]), 
+            'curr_no': len(nopart), 
+            'prev_si': len([e for e in ENFERMERAS_LISTA if e in part_p]), 
+            'prev_no': len([e for e in ENFERMERAS_LISTA if e not in part_p and e not in EXCEPCIONES_KAIZEN]), 
+            'lista_no': nopart
+        }
+        
         props = [{'nombre': r.iloc[1], 'fecha': r['Marca temporal'].strftime("%d/%m/%Y"), 'propuesta': str(r.iloc[2])} for _, r in df_k_curr.iterrows()]
             
+    # Generar incidencias por NO participar en Kaizen
     df_admin = pd.DataFrame([{"FECHA": f"{anio_num}-{mes_num:02d}-28", "EMPLEADO": e, "INCIDENCIA": "Falla Admin/Kaizen", "OBSERVACION": "No presentó propuesta"} for e in nopart])
-    df_bitacora['FECHA'] = pd.to_datetime(df_bitacora['FECHA'], errors='coerce')
-    df_bit = df_bitacora[(df_bitacora['FECHA'].dt.month == mes_num) & (df_bitacora['FECHA'].dt.year == anio_num)].copy()
-    if not df_bit.empty: df_bit['FECHA'] = df_bit['FECHA'].dt.strftime('%Y-%m-%d')
     
+    # 3. Procesar Bitácora Manual
+    df_bit = pd.DataFrame(columns=["FECHA", "EMPLEADO", "INCIDENCIA", "OBSERVACION"])
+    if not df_bitacora.empty:
+        df_bitacora_copy = df_bitacora.copy()
+        df_bitacora_copy['FECHA'] = pd.to_datetime(df_bitacora_copy['FECHA'], errors='coerce')
+        df_bit = df_bitacora_copy[(df_bitacora_copy['FECHA'].dt.month == mes_num) & (df_bitacora_copy['FECHA'].dt.year == anio_num)].copy()
+        if not df_bit.empty: 
+            df_bit['FECHA'] = df_bit['FECHA'].dt.strftime('%Y-%m-%d')
+    
+    # 4. Consolidar todas las incidencias
     df_todas = pd.concat([df_ret, df_bit, df_admin], ignore_index=True)
     
+    # 5. Calcular Nómina Final
     nomina = []
     for emp in sorted(list(set(EMPLEADOS_DB.values()))):
         df_e = df_todas[df_todas['EMPLEADO'] == emp]
+        
         c_ret = len(df_e[df_e['INCIDENCIA'] == 'Retardo Biométrico'])
         f_kz = not df_e[df_e['INCIDENCIA'] == 'Falla Admin/Kaizen'].empty
+        # Cualquier otra incidencia manual se considera falta para uniforme (Leve o Grave)
         f_gr = len(df_e[df_e['INCIDENCIA'].str.contains('Grave', case=False, na=False)])
+        f_otras = len(df_e) - c_ret - (1 if f_kz else 0)
         
-        bp = 500 if c_ret <= 3 else 0
-        bu = 500
-        ba = 0 if f_kz else 500
-        if f_gr > 0: bp, bu, ba = 0, 0, 0
+        # Reglas de Bonos
+        bp = 500 if c_ret <= 3 else 0  # Tolerancia de 3 retardos al mes
+        bu = 500 if f_otras == 0 else 0 # Si hay faltas de uniforme, celular, etc. pierde bono uniforme
+        ba = 0 if f_kz else 500         # Pierde bono admin si no hace Kaizen
+        
+        # Si comete una falta GRAVE (Agresión/Regla de oro), pierde TODOS los bonos
+        if f_gr > 0: 
+            bp, bu, ba = 0, 0, 0
             
-        nomina.append({"COLABORADOR": emp, "RETARDOS": c_ret, "INCIDENCIAS LEVES/GRAVES": len(df_e) - c_ret - (1 if f_kz else 0), "$ PUNTUAL": bp, "$ UNIFORM": bu, "$ ADMIN": ba, "TOTAL A PAGAR": bp + bu + ba})
+        nomina.append({
+            "COLABORADOR": emp, 
+            "RETARDOS": c_ret, 
+            "INCIDENCIAS LEVES/GRAVES": f_otras, 
+            "$ PUNTUAL": bp, 
+            "$ UNIFORM": bu, 
+            "$ ADMIN": ba, 
+            "TOTAL A PAGAR": bp + bu + ba
+        })
         
     return pd.DataFrame(nomina), df_todas, df_ret, stats_k, props
 
