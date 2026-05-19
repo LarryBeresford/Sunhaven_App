@@ -772,7 +772,7 @@ def main():
     # MÓDULO 1: DASHBOARD OPERATIVO
     # ---------------------------------------------------------
     if modulo_activo == "Dashboard de Operaciones":
-        st.title("Dashboard de Operaciones")
+        st.title("JACQUI GUAPA")
         data = cargar_datos_operaciones()
         if data is None: st.stop()
         df_ron, df_rop, df_serv = data["n"].copy(), data["v"].copy(), data["s"].copy()
