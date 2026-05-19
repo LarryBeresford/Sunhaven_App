@@ -42,6 +42,32 @@ st.markdown("""
     .stTabs [aria-selected="true"] { background-color: #1e293b !important; color: white !important; }
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
+    
+    /* ---------------------------------------------------
+       MEJORAS DE UX: OCULTAR BASURA Y ANIMAR BOTONES
+       --------------------------------------------------- */
+       
+    /* 1. Ocultar el menú de navegación residual de Streamlit (los nombres fantasma) */
+    [data-testid="stSidebarNav"] {display: none !important;}
+    
+    /* 2. Crear la animación de vibración (Shake/Vibrate) */
+    @keyframes vibrar {
+        0% { transform: translateX(0); }
+        20% { transform: translateX(-2px) rotate(-1deg); }
+        40% { transform: translateX(2px) rotate(1deg); }
+        60% { transform: translateX(-2px) rotate(-1deg); }
+        80% { transform: translateX(2px) rotate(1deg); }
+        100% { transform: translateX(0); }
+    }
+    
+    /* 3. Aplicar la animación a los botones cuando se pasa el mouse (hover) */
+    .stButton > button, .stDownloadButton > button {
+        transition: all 0.2s ease-in-out !important; /* Transición suave */
+    }
+    
+    .stButton > button:hover, .stDownloadButton > button:hover {
+        animation: vibrar 0.35s linear !important; /* Llama a la animación */
+    }
 </style>
 """, unsafe_allow_html=True)
 
