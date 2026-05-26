@@ -76,43 +76,44 @@ C_NAVY, C_SUN, C_DARK, C_LIGHT = (31, 58, 82), (211, 84, 0), (44, 62, 80), (245,
 # kaizen=False      → no participa en programa Kaizen
 # horas=True        → se incluye en reporte de horas semanales (personal admin/tiempo completo)
 PERSONAL_DB = [
-    # checador                        nombre completo                              depto            supervisora  kaizen  horas
-    {"c": "ALE",                      "n": "Alejandra Itzel de la Fuente Ramírez", "d": "Fisioterapia",  "sup": False, "kz": True,  "hrs": False},
-    {"c": "ARIANA",                   "n": "Ariana Villanueva Temores",             "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
-    {"c": "Araceli Figueroa",         "n": "Blanca Aracely Figueroa Marroquín",     "d": "Enfermería",    "sup": True,  "kz": False, "hrs": False},
-    {"c": "BLANCARUVC",               "n": "Blanca Estela Ruvalcaba Ruiz",          "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
-    {"c": "CARMEN",                   "n": "Carmen Torres Reyes",                   "d": "Cocina",        "sup": False, "kz": True,  "hrs": False},
-    {"c": "ConsueloCeja",             "n": "Consuelo Ceja Liborio",                 "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
-    {"c": "CRISTY",                   "n": "Cristina Ramos Aquino",                 "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
-    {"c": "HUGO",                     "n": "Hugo Silva Esparza",                    "d": "Mantenimiento", "sup": False, "kz": True,  "hrs": True },
-    {"c": "JACK",                     "n": "Jaqueline Hernández Sosa",              "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
-    {"c": "CESAR",                    "n": "Julio César Pérez Carranza",             "d": "Actividades",   "sup": False, "kz": True,  "hrs": True },
-    {"c": "MARIASEO",                 "n": "Maribel Herrera Mauricio",               "d": "Aseo",          "sup": False, "kz": True,  "hrs": False},
-    {"c": "MarthaCastro",             "n": "Martha Manuela Castro García",           "d": "Cocina",        "sup": False, "kz": True,  "hrs": True },
-    {"c": "MAYT",                     "n": "Mayte López Romero",                    "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
-    {"c": "MONI",                     "n": "Mónica Teresa Grande Figueroa",          "d": "Lavandería",    "sup": False, "kz": True,  "hrs": True },
-    {"c": "NANCI",                    "n": "Nancy Estephania González Velasco",      "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
-    {"c": "NIRE",                     "n": "Nireida Flores Núñez",                  "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
-    {"c": "Olga Gabriela Jimenez",    "n": "Olga Gabriela Jiménez Medina",          "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
-    {"c": "RosaCastro",               "n": "Rosa Isela Antonieta Castro García",     "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
-    {"c": "SANDY",                    "n": "Sandy Yusbeth Cruz González",            "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
-    {"c": "Silvia Rodriguez",         "n": "Silvia Rodríguez Reynaga",              "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
-    {"c": "VERO",                     "n": "Verónica Janeth Gómez López",           "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
-    {"c": "YamileLuquin",             "n": "Yareli Yamile Luquin Puga",             "d": "Enfermería",    "sup": True,  "kz": False, "hrs": False},
-    {"c": "Guadalupe",                "n": "Guadalupe Georgia Lopez Ceja",           "d": "Enfermería",    "sup": False, "kz": False, "hrs": False},
+    # checador                        nombre completo                              depto            sup     kz      hrs
+    {"c": "ALE",                   "n": "Alejandra Itzel de la Fuente Ramírez",  "d": "Fisioterapia",  "sup": False, "kz": True,  "hrs": False},
+    {"c": "ARIANA",                "n": "Ariana Villanueva Temores",              "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
+    {"c": "Araceli Figueroa",      "n": "Blanca Aracely Figueroa Marroquín",      "d": "Enfermería",    "sup": True,  "kz": False, "hrs": False},
+    {"c": "BLANCARUVC",            "n": "Blanca Estela Ruvalcaba Ruiz",           "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
+    {"c": "CARMEN",                "n": "Carmen Torres Reyes",                    "d": "Cocina",        "sup": False, "kz": True,  "hrs": False},
+    {"c": "ConsueloCeja",          "n": "Consuelo Ceja Liborio",                  "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
+    {"c": "CRISTY",                "n": "Cristina Ramos Aquino",                  "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
+    {"c": "HUGO",                  "n": "Hugo Silva Esparza",                     "d": "Mantenimiento", "sup": False, "kz": True,  "hrs": True },
+    {"c": "JACK",                  "n": "Jaqueline Hernández Sosa",               "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
+    {"c": "CESAR",                 "n": "Julio César Pérez Carranza",              "d": "Actividades",   "sup": False, "kz": True,  "hrs": True },
+    {"c": "MARIASEO",              "n": "Maribel Herrera Mauricio",                "d": "Aseo",          "sup": False, "kz": True,  "hrs": False},
+    {"c": "MarthaCastro",          "n": "Martha Manuela Castro García",            "d": "Cocina",        "sup": False, "kz": True,  "hrs": True },
+    {"c": "MAYT",                  "n": "Mayte López Romero",                     "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
+    {"c": "MONI",                  "n": "Mónica Teresa Grande Figueroa",           "d": "Lavandería",    "sup": False, "kz": True,  "hrs": True },
+    {"c": "NANCI",                 "n": "Nancy Estephania González Velasco",       "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
+    {"c": "NIRE",                  "n": "Nireida Flores Núñez",                   "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
+    {"c": "Olga Gabriela Jimenez", "n": "Olga Gabriela Jiménez Medina",           "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
+    {"c": "RosaCastro",            "n": "Rosa Isela Antonieta Castro García",      "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
+    {"c": "SANDY",                 "n": "Sandy Yusbeth Cruz González",             "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
+    {"c": "Silvia Rodriguez",      "n": "Silvia Rodríguez Reynaga",               "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
+    {"c": "VERO",                  "n": "Verónica Janeth Gómez López",            "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
+    {"c": "YamileLuquin",          "n": "Yareli Yamile Luquin Puga",              "d": "Enfermería",    "sup": True,  "kz": False, "hrs": False},
+    {"c": "Guadalupe",             "n": "Guadalupe Georgia Lopez Ceja",            "d": "Enfermería",    "sup": False, "kz": False, "hrs": False},
 ]
 
 # --- Constantes derivadas automáticamente de PERSONAL_DB ---
-EMPLEADOS_DB          = {p["c"]: p["n"] for p in PERSONAL_DB}
-ENFERMERAS_LISTA      = [p["n"] for p in PERSONAL_DB if p["d"] == "Enfermería"]
+EMPLEADOS_DB            = {p["c"]: p["n"] for p in PERSONAL_DB}
+ENFERMERAS_LISTA        = [p["n"] for p in PERSONAL_DB if p["d"] == "Enfermería"]
 SUPERVISORAS_ENFERMERIA = [p["n"] for p in PERSONAL_DB if p["d"] == "Enfermería" and p["sup"]]
-EXCEPCIONES_KAIZEN    = [p["n"] for p in PERSONAL_DB if not p["kz"]]
-CHECADORES_ESPECIALES = [p["c"] for p in PERSONAL_DB if p["hrs"]]
+EXCEPCIONES_KAIZEN      = [p["n"] for p in PERSONAL_DB if not p["kz"]]
+CHECADORES_ESPECIALES   = [p["c"] for p in PERSONAL_DB if p["hrs"]]
 
 # --- REGLAS DE NEGOCIO ---
 ENFERMERAS_ROL_A = ["Consuelo Ceja Liborio", "Jaqueline Hernández Sosa"]
 ENFERMERAS_ROL_B = ["Silvia Rodríguez Reynaga", "Guadalupe Georgia Lopez Ceja"]
 ENFERMERAS_NOCHE = ENFERMERAS_ROL_A + ENFERMERAS_ROL_B
+
 HORA_ENTRADA_DIA, HORA_ENTRADA_NOCHE = datetime.strptime("08:15", "%H:%M").time(), datetime.strptime("20:15", "%H:%M").time()
 TIPO_INCIDENCIAS = ["Falta de uniforme (Leve)", "Uso de celular (Leve)", "No hacer entrega (Leve)", "No hacer ronda (Leve)", "Salida anticipada (Leve)", "AGRESIÓN / CONFLICTO (Grave)", "REGLA DE ORO (Grave)"]
 
@@ -168,6 +169,36 @@ def tabla_centrada(pdf, headers, data, col_widths):
             pdf.cell(col_widths[i], 6, sanitizar_texto(str(val)), 1, 0, align, fill)
         pdf.ln()
         fill = not fill
+
+def safe_add_section(pdf, titulo, min_space=70):
+    """Salta de página si no hay espacio suficiente antes de un título de sección."""
+    if pdf.get_y() > (297 - min_space):
+        pdf.add_page()
+    pdf.set_font('Helvetica', 'B', 14)
+    pdf.set_text_color(*C_NAVY)
+    pdf.cell(0, 8, sanitizar_texto(titulo), 0, 1, 'L')
+    pdf.set_draw_color(*C_SUN)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(3)
+
+def img_centrada(pdf, path, w=185):
+    """Inserta imagen centrada horizontalmente en página A4 (210mm)."""
+    if path and os.path.exists(path):
+        x = (210 - w) / 2
+        pdf.image(path, x=x, w=w)
+
+def bloque_conclusion(pdf, texto):
+    """Bloque final de conclusiones con estilo premium."""
+    if pdf.get_y() > 240:
+        pdf.add_page()
+    pdf.ln(6)
+    pdf.set_font('Helvetica', 'B', 12)
+    pdf.set_fill_color(240, 245, 250)
+    pdf.set_text_color(*C_NAVY)
+    pdf.cell(0, 9, sanitizar_texto("  CONCLUSIONES Y RECOMENDACIONES EJECUTIVAS"), 1, 1, 'L', True)
+    pdf.set_font('Helvetica', '', 10)
+    pdf.set_text_color(*C_DARK)
+    pdf.multi_cell(0, 6, sanitizar_texto(texto), 1, 'L')
 
 class SunhavenPDF(FPDF):
     def header(self):
@@ -233,69 +264,134 @@ class SunhavenPDF(FPDF):
 # ==========================================
 def generar_dictamen_operativo(ico, df_a, df_c):
     if df_a.empty or df_c.empty:
-        return "No hay datos suficientes para generar un dictamen.", "No hay datos suficientes."
+        return "Sin datos suficientes para este periodo.", "Sin datos suficientes para este periodo."
 
-    areas_bajas = df_a[df_a['V'] < 90].sort_values('V', ascending=True)
+    areas_bajas  = df_a[df_a['V'] < 90].sort_values('V', ascending=True)
     causas_bajas = df_c[df_c['V'] < 90].sort_values('V', ascending=True)
+    top_areas    = [r['index'] for _, r in areas_bajas.head(2).iterrows()]
+    top_causas   = [r['index'] for _, r in causas_bajas.head(2).iterrows()]
 
     if ico >= 90:
-        html = "<strong>[ ESTADO ESTABLE ]</strong> Todas las áreas superan la línea base del 90%. Se recomienda mantener los protocolos de supervisión actuales."
-        pdf_text = "El ecosistema operativo se encuentra en estado ESTABLE. Todas las métricas superan la línea base del 90%. Se recomienda mantener los protocolos de supervisión actuales y extender un reconocimiento al equipo."
-    elif ico >= 80:
-        peor_area = areas_bajas.iloc[0]['index'] if not areas_bajas.empty else "N/A"
-        peor_causa = causas_bajas.iloc[0]['index'] if not causas_bajas.empty else "N/A"
-        html = f"<strong>[ ALERTA PREVENTIVA ]</strong> El rendimiento general está decayendo.<br><br>1. <strong>Foco Primario:</strong> El departamento de '{peor_area}' muestra debilidad operativa.<br>2. <strong>Causa Principal:</strong> El criterio de '{peor_causa}' necesita revisión.<br>3. <strong>Acción Sugerida:</strong> Agendar reunión de calibración con el personal del turno afectado."
-        pdf_text = f"ALERTA PREVENTIVA: El rendimiento general requiere ajustes antes de volverse crítico.\n\n1. Foco Primario: El departamento de '{peor_area}' presenta las métricas más bajas.\n2. Causa Principal: El criterio de '{peor_causa}' necesita revisión operativa.\n3. Acción Sugerida: Se recomienda una sesión de retroalimentación (feedback) con el personal involucrado."
+        label   = "Estado Óptimo"
+        color   = "#10b981"
+        html    = (f"<strong>{label}</strong> — El índice de cumplimiento operativo alcanzó el "
+                   f"<strong>{ico:.1f}%</strong>, superando la línea base institucional. "
+                   f"Todos los departamentos se encuentran dentro del rango esperado. "
+                   f"Se recomienda mantener los protocolos vigentes y reconocer el desempeño del equipo.")
+        pdf_txt = (f"El índice de cumplimiento operativo alcanzó el {ico:.1f}%, superando la meta institucional. "
+                   f"Todos los departamentos operan dentro del rango esperado. "
+                   f"Se recomienda mantener los protocolos vigentes y reconocer el desempeño del equipo.")
+    elif ico >= 75:
+        foco    = top_areas[0] if top_areas else "área general"
+        causa   = top_causas[0] if top_causas else "criterio operativo"
+        label   = "Alerta Preventiva"
+        html    = (f"<strong>{label}</strong> — El índice alcanzó el <strong>{ico:.1f}%</strong>, "
+                   f"con oportunidades de mejora identificadas. El área de <em>{foco}</em> presenta "
+                   f"el mayor margen de mejora, siendo <em>{causa}</em> el criterio con mayor impacto. "
+                   f"Se recomienda una sesión de calibración con el personal involucrado esta semana.")
+        pdf_txt = (f"El índice de cumplimiento operativo se ubicó en {ico:.1f}%, con oportunidades de mejora "
+                   f"identificadas. El área de {foco} presenta el mayor margen de desarrollo, "
+                   f"siendo {causa} el criterio con mayor incidencia. "
+                   f"Se recomienda agendar una sesión de retroalimentación con el equipo afectado.")
     else:
-        peor_area = areas_bajas.iloc[0]['index'] if not areas_bajas.empty else "N/A"
-        peor_causa = causas_bajas.iloc[0]['index'] if not causas_bajas.empty else "N/A"
-        html = f"<strong>[ ATENCIÓN CRÍTICA ]</strong> Existen deficiencias serias en la operación.<br><br>1. <strong>ÁREA ROJA:</strong> El departamento de '{peor_area}' requiere intervención gerencial urgente.<br>2. <strong>FALLA SISTÉMICA:</strong> El incumplimiento en '{peor_causa}' está arrastrando la calificación.<br>3. <strong>ACCIÓN OBLIGATORIA:</strong> Ejecutar plan de corrección inmediato."
-        pdf_text = f"ATENCIÓN CRÍTICA: Se detectan deficiencias operativas que requieren intervención gerencial inmediata.\n\n1. ÁREA ROJA: El departamento de '{peor_area}' muestra un rendimiento deficiente.\n2. FALLA SISTÉMICA: El incumplimiento en el criterio de '{peor_causa}' es la principal causa del rezago.\n3. ACCIÓN OBLIGATORIA: Implementar un plan de choque esta semana. Se sugiere mayor presencia de supervisión física."
+        foco    = top_areas[0] if top_areas else "área general"
+        causa   = top_causas[0] if top_causas else "criterio operativo"
+        label   = "Atención Requerida"
+        html    = (f"<strong>{label}</strong> — El índice se situó en <strong>{ico:.1f}%</strong>, "
+                   f"por debajo del estándar institucional. El área de <em>{foco}</em> requiere "
+                   f"intervención inmediata; la principal causa raíz identificada es <em>{causa}</em>. "
+                   f"Se exige implementar acciones correctivas esta semana.")
+        pdf_txt = (f"El índice de cumplimiento operativo se situó en {ico:.1f}%, por debajo del estándar. "
+                   f"El área de {foco} requiere intervención inmediata. "
+                   f"La principal causa raíz identificada es {causa}. "
+                   f"Se exige implementar acciones correctivas de forma urgente.")
 
-    return html, pdf_text
+    return html, pdf_txt
 
 def generar_dictamen_nomina(stats_kaizen, df_retardos):
-    t_kz = stats_kaizen['curr_si'] + stats_kaizen['curr_no']
+    t_kz   = stats_kaizen['curr_si'] + stats_kaizen['curr_no']
     pct_kz = (stats_kaizen['curr_si'] / t_kz * 100) if t_kz > 0 else 0
-    
-    html, pdf_text = "", ""
-    
-    if pct_kz < 80:
-        html += f"• <strong>[ MEJORA CONTINUA (KAIZEN) ]</strong> El {pct_kz:.1f}% del personal entregó sus propuestas. Nivel bajo de cumplimiento. Se recomienda aplicar deducción administrativa a los omisos.<br>"
-        pdf_text += f"1. PARTICIPACIÓN KAIZEN: El {pct_kz:.1f}% del personal entregó sus propuestas. Nivel bajo de cumplimiento. Se recomienda aplicar la deducción administrativa de inmediato a los omisos para fomentar la disciplina.\n\n"
-    else:
-        html += f"• <strong>[ MEJORA CONTINUA (KAIZEN) ]</strong> El {pct_kz:.1f}% del personal entregó sus propuestas. Nivel de participación excelente.<br>"
-        pdf_text += f"1. PARTICIPACIÓN KAIZEN: El {pct_kz:.1f}% del personal entregó sus propuestas. Nivel de participación excelente. Se sugiere reconocer públicamente las mejores propuestas.\n\n"
-        
-    if not df_retardos.empty:
-        peor_emp = df_retardos['EMPLEADO'].value_counts().index[0]
-        max_ret = df_retardos['EMPLEADO'].value_counts().iloc[0]
-        html += f"• <strong>[ PUNTUALIDAD ]</strong> El colaborador con mayor reincidencia de retardos biométricos es '{peor_emp}' ({max_ret} retardos). Se recomienda citación para diálogo y acta administrativa."
-        pdf_text += f"2. PUNTUALIDAD: El colaborador con mayor reincidencia de retardos biométricos es '{peor_emp}' con {max_ret} retardos. Se recomienda citación para diálogo y acta administrativa en caso de continuar la tendencia."
-    else:
-        html += "• <strong>[ PUNTUALIDAD ]</strong> Excelente puntualidad general en este periodo. No hay reincidencias críticas."
-        pdf_text += "2. PUNTUALIDAD: Excelente puntualidad general en este periodo. No hay reincidencias críticas."
-        
-    return html, pdf_text
 
+    # ── Kaizen ──────────────────────────────────────────────────────
+    if pct_kz >= 85:
+        kz_html = (f"<strong>Mejora Continua:</strong> La participación en el programa Kaizen "
+                   f"alcanzó el <strong>{pct_kz:.0f}%</strong> — un resultado destacable. "
+                   f"Se recomienda visibilizar las propuestas más innovadoras en la próxima reunión de equipo.")
+        kz_pdf  = (f"La participación en el programa Kaizen alcanzó el {pct_kz:.0f}%, un resultado "
+                   f"destacable para el periodo. Se recomienda visibilizar las propuestas más innovadoras "
+                   f"en la próxima reunión de equipo y reconocer públicamente a los colaboradores más activos.")
+    else:
+        kz_html = (f"<strong>Mejora Continua:</strong> La participación en Kaizen se ubicó en "
+                   f"<strong>{pct_kz:.0f}%</strong> este periodo. Hay margen de mejora en la adopción "
+                   f"del programa. Se recomienda reforzar la comunicación sobre su importancia.")
+        kz_pdf  = (f"La participación en el programa Kaizen se ubicó en {pct_kz:.0f}% este periodo, "
+                   f"con margen de mejora en la adopción. Se recomienda reforzar la comunicación "
+                   f"sobre la importancia del programa y dar seguimiento oportuno a los colaboradores omisos.")
+
+    # ── Puntualidad ─────────────────────────────────────────────────
+    if not df_retardos.empty:
+        peor_emp  = df_retardos['EMPLEADO'].value_counts().index[0]
+        ret_html  = (f"<strong>Puntualidad:</strong> Se registraron incidencias de asistencia en el periodo. "
+                     f"El colaborador con mayor frecuencia de registros tardíos es <em>{peor_emp}</em>. "
+                     f"Se recomienda agendar una conversación de seguimiento.")
+        ret_pdf   = (f"Se registraron incidencias de asistencia durante el periodo. "
+                     f"El colaborador con mayor frecuencia de registros tardíos es {peor_emp}. "
+                     f"Se recomienda agendar una conversación de seguimiento para reforzar el compromiso con el horario.")
+    else:
+        ret_html  = ("<strong>Puntualidad:</strong> El equipo mantuvo una puntualidad ejemplar "
+                     "durante todo el periodo. Sin incidencias relevantes que requieran atención.")
+        ret_pdf   = ("El equipo mantuvo una puntualidad ejemplar durante el periodo evaluado, "
+                     "sin incidencias relevantes que requieran atención inmediata.")
+
+    html     = kz_html + "<br><br>" + ret_html
+    pdf_text = kz_pdf  + "\n\n"   + ret_pdf
+    return html, pdf_text
 def generar_dictamen_rondines(alertas_fraude, df_resumen):
-    html, pdf_text = "", ""
-    
+    partes_html, partes_pdf = [], []
+
+    # ── Integridad ───────────────────────────────────────────────────
     if alertas_fraude > 0:
-        html += f"• <strong>[ ALERTA ANTIFRAUDE ]</strong> Se han detectado {alertas_fraude} escaneos realizados en menos de 60 segundos entre sí. Cruzar horarios con cámaras de vigilancia.<br>"
-        pdf_text += f"ALERTA DE AUDITORÍA: Se han detectado {alertas_fraude} escaneos realizados en menos de 60 segundos entre sí. Esto indica un fuerte indicio de llenado fraudulento de la bitácora desde un mismo dispositivo físico. Se exige cruzar estos horarios con las cámaras de vigilancia.\n\n"
-    
-    bajos = df_resumen[df_resumen['% Cumplimiento'] < 90]
+        partes_html.append(
+            f"<strong>Integridad de Registros:</strong> El sistema detectó {alertas_fraude} "
+            f"escaneo{'s' if alertas_fraude > 1 else ''} con intervalos de tiempo inconsistentes. "
+            f"Se recomienda cruzar los horarios marcados con el sistema de cámaras de vigilancia "
+            f"antes de tomar medidas disciplinarias.")
+        partes_pdf.append(
+            f"INTEGRIDAD: El sistema detectó {alertas_fraude} escaneo(s) con intervalos de tiempo "
+            f"inconsistentes entre registros consecutivos del mismo colaborador. Se recomienda cruzar "
+            f"los horarios con el sistema de videovigilancia antes de tomar medidas disciplinarias.")
+    else:
+        partes_html.append(
+            "<strong>Integridad de Registros:</strong> No se detectaron inconsistencias en los "
+            "patrones de escaneo durante el periodo. Los registros presentan una distribución "
+            "temporal coherente con la operación presencial esperada.")
+        partes_pdf.append(
+            "INTEGRIDAD: No se detectaron inconsistencias en los patrones de escaneo durante "
+            "el periodo. Los registros presentan una distribución temporal coherente con la "
+            "operación presencial esperada.")
+
+    # ── Desempeño ────────────────────────────────────────────────────
+    bajos = df_resumen[df_resumen['% Cumplimiento'] < 90] if not df_resumen.empty else pd.DataFrame()
     if not bajos.empty:
         nombres = ", ".join(bajos['Colaborador'].tolist())
-        html += f"• <strong>[ DESEMPEÑO INSUFICIENTE ]</strong> Las siguientes enfermeras no alcanzaron la meta mínima del 90% en sus rondines: {nombres}. Se recomienda sanción administrativa."
-        pdf_text += f"DESEMPEÑO: Las siguientes enfermeras no alcanzaron la meta mínima del 90% en sus rondines: {nombres}. Se recomienda aplicar la sanción administrativa y dialogar para evitar negligencias nocturnas."
+        partes_html.append(
+            f"<strong>Desempeño Operativo:</strong> Se identificaron colaboradoras con cobertura "
+            f"por debajo del estándar institucional: <em>{nombres}</em>. Se recomienda una "
+            f"reunión de seguimiento para identificar las causas y establecer compromisos de mejora.")
+        partes_pdf.append(
+            f"DESEMPEÑO: Se identificaron colaboradoras con cobertura por debajo del estándar "
+            f"institucional: {nombres}. Se recomienda una reunión de seguimiento para identificar "
+            f"las causas y establecer compromisos de mejora concretos.")
     else:
-        html += "• <strong>[ DESEMPEÑO ÓPTIMO ]</strong> El equipo nocturno cumplió satisfactoriamente con la meta de rondas de seguridad."
-        pdf_text += "DESEMPEÑO: El equipo nocturno cumplió satisfactoriamente con la meta de rondas de seguridad establecidas."
-        
-    return html, pdf_text
+        partes_html.append(
+            "<strong>Desempeño Operativo:</strong> El equipo nocturno alcanzó los estándares de "
+            "cobertura establecidos durante el periodo. Se reconoce el compromiso del personal "
+            "con la seguridad y bienestar de los residentes.")
+        partes_pdf.append(
+            "DESEMPEÑO: El equipo nocturno alcanzó los estándares de cobertura establecidos. "
+            "Se reconoce el compromiso del personal con la seguridad y bienestar de los residentes.")
 
+    return "<br><br>".join(partes_html), "\n\n".join(partes_pdf)
 
 # ==========================================
 # 3. GENERADORES DE PDF POR MÓDULO
@@ -303,88 +399,139 @@ def generar_dictamen_rondines(alertas_fraude, df_resumen):
 def generar_pdf_dashboard_op(ico, estatus, df_a, df_c, df_evol, agrupacion, fecha_str, pdf_dictamen):
     temp_dir = os.path.join(os.path.dirname(__file__), f'temp_img_{uuid.uuid4().hex}')
     os.makedirs(temp_dir, exist_ok=True)
-    
-    plt.figure(figsize=(7, 4))
-    plt.bar(df_a['index'], df_a['V'], color=HEX_NAVY)
-    plt.axhline(90, color='red', linestyle='--')
-    plt.title('Pareto por Área Operativa', fontsize=10, fontweight='bold')
-    plt.tight_layout()
+
+    # ── Pareto por área: mayor → menor ──────────────────────────────
+    df_a_sorted = df_a.sort_values('V', ascending=False)
+    fig1, ax1 = plt.subplots(figsize=(11, 5))
+    bar_colors_a = ['#10b981' if v >= 90 else '#dc2626' for v in df_a_sorted['V']]
+    bars = ax1.bar(df_a_sorted['index'], df_a_sorted['V'], color=bar_colors_a, zorder=3)
+    ax1.axhline(90, color='#64748b', linestyle='--', linewidth=1.5, label='Meta 90%', zorder=2)
+    ax1.set_ylim(0, 112)
+    ax1.set_title('Índice de Cumplimiento por Área Operativa', fontsize=12, fontweight='bold', pad=12)
+    ax1.set_ylabel('Cumplimiento (%)', fontsize=10)
+    ax1.yaxis.grid(True, linestyle=':', alpha=0.6, zorder=0)
+    ax1.set_axisbelow(True)
+    ax1.legend(fontsize=9)
+    for b, v in zip(bars, df_a_sorted['V']):
+        ax1.text(b.get_x() + b.get_width() / 2, v + 1.2, f'{v:.1f}%', ha='center', va='bottom', fontsize=9, fontweight='bold')
+    fig1.tight_layout()
     p_pareto = os.path.join(temp_dir, 'pareto_op.png')
-    plt.savefig(p_pareto)
-    plt.close()
+    fig1.savefig(p_pareto, dpi=150, bbox_inches='tight')
+    plt.close(fig1)
 
-    plt.figure(figsize=(7, 4))
-    df_c_sorted = df_c.sort_values('V', ascending=True)
-    plt.barh(df_c_sorted['index'], df_c_sorted['V'], color=HEX_RED)
-    plt.axvline(90, color='black', linestyle='--')
-    plt.title('Análisis de Causa Raíz', fontsize=10, fontweight='bold')
-    plt.tight_layout()
+    # ── Causa raíz: mayor → menor (barh invertido para leer de arriba abajo) ──
+    df_c_sorted = df_c.sort_values('V', ascending=True)  # ascending=True → mayor queda arriba en barh
+    fig2, ax2 = plt.subplots(figsize=(11, max(4, len(df_c_sorted) * 0.5)))
+    bar_colors_c = ['#10b981' if v >= 90 else '#dc2626' for v in df_c_sorted['V']]
+    bars2 = ax2.barh(df_c_sorted['index'], df_c_sorted['V'], color=bar_colors_c, zorder=3)
+    ax2.axvline(90, color='#64748b', linestyle='--', linewidth=1.5, label='Meta 90%', zorder=2)
+    ax2.set_xlim(0, 115)
+    ax2.set_title('Análisis de Causa Raíz — Criterios por Impacto', fontsize=12, fontweight='bold', pad=12)
+    ax2.set_xlabel('Cumplimiento (%)', fontsize=10)
+    ax2.xaxis.grid(True, linestyle=':', alpha=0.6, zorder=0)
+    ax2.set_axisbelow(True)
+    ax2.legend(fontsize=9)
+    for b, v in zip(bars2, df_c_sorted['V']):
+        ax2.text(v + 0.8, b.get_y() + b.get_height() / 2, f'{v:.1f}%', va='center', fontsize=8, fontweight='bold')
+    fig2.tight_layout()
     p_causa = os.path.join(temp_dir, 'causa_op.png')
-    plt.savefig(p_causa)
-    plt.close()
-    
-    plt.figure(figsize=(9, 4))
-    if not df_evol.empty:
-        for col in df_evol.columns: plt.plot(df_evol.index, df_evol[col], marker='o', label=col)
-        plt.axhline(90, color='red', linestyle='--')
-        plt.title(f'Evolución Histórica Sincronizada ({agrupacion})', fontsize=10, fontweight='bold')
-        plt.xticks(rotation=45, ha='right', fontsize=8)
-        plt.legend(loc='lower center', bbox_to_anchor=(0.5, -0.4), ncol=5)
-    plt.tight_layout()
-    p_evol = os.path.join(temp_dir, 'evol_op.png')
-    plt.savefig(p_evol)
-    plt.close()
+    fig2.savefig(p_causa, dpi=150, bbox_inches='tight')
+    plt.close(fig2)
 
+    # ── Evolución histórica ──────────────────────────────────────────
+    fig3, ax3 = plt.subplots(figsize=(13, 5))
+    if not df_evol.empty:
+        colors_ev = ['#1e293b', '#d35400', '#10b981', '#3b82f6', '#8b5cf6']
+        for i, col in enumerate(df_evol.columns):
+            ax3.plot(df_evol.index, df_evol[col], marker='o', linewidth=2.5,
+                     label=col, color=colors_ev[i % len(colors_ev)])
+        ax3.axhline(90, color='#ef4444', linestyle='--', linewidth=1.5, label='Línea base 90%')
+        ax3.set_title(f'Evolución Histórica Sincronizada — Agrupación: {agrupacion}', fontsize=12, fontweight='bold', pad=12)
+        ax3.set_ylabel('Cumplimiento (%)', fontsize=10)
+        ax3.yaxis.grid(True, linestyle=':', alpha=0.5)
+        ax3.set_axisbelow(True)
+        plt.xticks(rotation=40, ha='right', fontsize=8)
+        ax3.legend(loc='upper center', bbox_to_anchor=(0.5, -0.18), ncol=5, fontsize=9)
+    fig3.tight_layout()
+    p_evol = os.path.join(temp_dir, 'evol_op.png')
+    fig3.savefig(p_evol, dpi=150, bbox_inches='tight')
+    plt.close(fig3)
+
+    # ── Construir PDF ────────────────────────────────────────────────
     pdf = SunhavenPDF()
     pdf.titulo_header = "REPORTE EJECUTIVO - OPERACIONES"
     pdf.cover_page("INDICADORES OPERATIVOS (KPI)", "Estado de las Infraestructuras y Servicios", fecha_str)
-    
+
+    # S1 — Estatus global
     pdf.add_page()
-    pdf.set_font('Helvetica', 'B', 14)
-    pdf.set_text_color(*C_NAVY)
-    pdf.cell(0, 8, sanitizar_texto("1. ESTATUS GLOBAL INSTITUCIONAL"), 0, 1, 'L')
-    pdf.set_draw_color(*C_SUN)
-    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-    pdf.ln(5)
+    safe_add_section(pdf, "1. ESTATUS GLOBAL INSTITUCIONAL", min_space=80)
     pdf.set_font('Helvetica', '', 11)
     pdf.set_text_color(*C_DARK)
     pdf.cell(0, 8, sanitizar_texto(f"Índice de Cumplimiento Operativo (ICO Maestro): {ico:.1f}%"), 0, 1)
     pdf.cell(0, 8, sanitizar_texto(f"Dictamen del Sistema: {estatus}"), 0, 1)
-    
-    pdf.ln(5)
-    pdf.set_font('Helvetica', 'B', 14)
-    pdf.set_text_color(*C_NAVY)
-    pdf.cell(0, 8, sanitizar_texto("2. DESEMPEÑO POR DEPARTAMENTO"), 0, 1, 'L')
-    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-    pdf.image(p_pareto, x=30, w=150)
-    pdf.ln(75)
-    
-    pdf.set_font('Helvetica', 'B', 14)
-    pdf.set_text_color(*C_NAVY)
-    pdf.cell(0, 8, sanitizar_texto("3. ANÁLISIS DE CAUSA RAÍZ"), 0, 1, 'L')
-    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-    pdf.ln(3)
-    pdf.image(p_causa, x=30, w=150)
-    pdf.ln(75)
-    
-    pdf.add_page()
-    pdf.set_font('Helvetica', 'B', 14)
-    pdf.set_text_color(*C_NAVY)
-    pdf.cell(0, 8, sanitizar_texto("4. EVOLUCIÓN HISTÓRICA (TENDENCIA)"), 0, 1, 'L')
-    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-    pdf.ln(5)
-    pdf.image(p_evol, x=15, w=180)
-    pdf.ln(100)
-    
-    pdf.set_font('Helvetica', 'B', 12)
-    pdf.set_fill_color(240, 245, 250)
-    pdf.cell(0, 8, sanitizar_texto(" CONCLUSIONES Y RECOMENDACIONES EJECUTIVAS"), 1, 1, 'L', True)
+    pdf.ln(4)
+
+    # S2 — Pareto por área
+    safe_add_section(pdf, "2. DESEMPEÑO POR ÁREA OPERATIVA", min_space=120)
     pdf.set_font('Helvetica', '', 10)
     pdf.set_text_color(*C_DARK)
-    pdf.multi_cell(0, 6, sanitizar_texto(pdf_dictamen), 1, 'L')
+    # Texto explicativo: áreas que requieren atención
+    areas_criticas = df_a_sorted[df_a_sorted['V'] < 90]
+    if not areas_criticas.empty:
+        lista_ac = ", ".join(areas_criticas['index'].tolist())
+        pdf.multi_cell(0, 5, sanitizar_texto(
+            f"El siguiente pareto muestra el cumplimiento de cada área de mayor a menor. "
+            f"Las barras en rojo no alcanzan el estándar institucional. "
+            f"Áreas que requieren atención prioritaria: {lista_ac}."
+        ), 0, 'J')
+    else:
+        pdf.multi_cell(0, 5, sanitizar_texto(
+            "Todas las áreas superan el estándar institucional en este periodo. "
+            "Las barras verdes confirman el cumplimiento generalizado de la operación."
+        ), 0, 'J')
+    pdf.ln(3)
+    img_centrada(pdf, p_pareto, w=188)
+    pdf.ln(5)
+
+    # S3 — Causa raíz
+    safe_add_section(pdf, "3. ANÁLISIS DE CAUSA RAÍZ", min_space=120)
+    pdf.set_font('Helvetica', '', 10)
+    pdf.set_text_color(*C_DARK)
+    causas_criticas = df_c_sorted[df_c_sorted['V'] < 90].sort_values('V', ascending=True)
+    if not causas_criticas.empty:
+        top2 = causas_criticas.head(2)['index'].tolist()
+        pdf.multi_cell(0, 5, sanitizar_texto(
+            f"Los criterios con mayor impacto negativo en el desempeño operativo son: "
+            f"{', '.join(top2)}. Atender estos puntos generará la mejora más significativa en el ICO Maestro."
+        ), 0, 'J')
+    else:
+        pdf.multi_cell(0, 5, sanitizar_texto(
+            "Todos los criterios operativos se encuentran dentro del rango esperado. "
+            "No se identifican causas raíz críticas en este periodo."
+        ), 0, 'J')
+    pdf.ln(3)
+    img_centrada(pdf, p_causa, w=188)
+    pdf.ln(5)
+
+    # S4 — Evolución
+    pdf.add_page()
+    safe_add_section(pdf, "4. EVOLUCIÓN HISTÓRICA Y TENDENCIAS", min_space=100)
+    pdf.set_font('Helvetica', '', 10)
+    pdf.set_text_color(*C_DARK)
+    pdf.multi_cell(0, 5, sanitizar_texto(
+        f"Tendencia histórica de cada área operativa agrupada por {agrupacion.lower()}. "
+        f"La línea punteada roja marca el estándar del 90%. "
+        f"Periodos consistentemente por debajo de la línea indican un patrón crónico que requiere intervención estructural."
+    ), 0, 'J')
+    pdf.ln(3)
+    img_centrada(pdf, p_evol, w=188)
+
+    # Conclusiones
+    bloque_conclusion(pdf, pdf_dictamen)
 
     shutil.rmtree(temp_dir, ignore_errors=True)
     return pdf.output(dest='S').encode('latin-1', 'replace')
+
 
 def generar_pdf_nomina(df_nomina, df_incidencias, df_retardos, stats_kaizen, propuestas,
                        df_bio, mes_num, anio_num, mes_str, pdf_dictamen):
@@ -394,7 +541,7 @@ def generar_pdf_nomina(df_nomina, df_incidencias, df_retardos, stats_kaizen, pro
     # ================================================================
     # FIGURA 1: Pareto + Ranking lado a lado (figura combinada)
     # ================================================================
-    fig1, (ax_par, ax_ret) = plt.subplots(1, 2, figsize=(14, 5))
+    fig1, (ax_par, ax_ret) = plt.subplots(1, 2, figsize=(14, 6.5))
 
     inc_counts = df_incidencias['INCIDENCIA'].value_counts()
     if not inc_counts.empty:
@@ -429,7 +576,7 @@ def generar_pdf_nomina(df_nomina, df_incidencias, df_retardos, stats_kaizen, pro
     # ================================================================
     # FIGURA 2: Donuts Kaizen (mes anterior vs. mes actual)
     # ================================================================
-    fig2, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
+    fig2, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5.5))
     colors_kz = [HEX_GREEN, HEX_RED]
     tot_p = stats_kaizen['prev_si'] + stats_kaizen['prev_no']
     tot_c = stats_kaizen['curr_si'] + stats_kaizen['curr_no']
@@ -492,31 +639,21 @@ def generar_pdf_nomina(df_nomina, df_incidencias, df_retardos, stats_kaizen, pro
 
     # ---- SECCION 1: Gráficas de análisis ----
     pdf.add_page()
-    pdf.set_font('Helvetica', 'B', 14)
-    pdf.set_text_color(*C_NAVY)
-    pdf.cell(0, 8, sanitizar_texto("1. ANALISIS DE INCIDENCIAS DEL PERIODO"), 0, 1, 'L')
-    pdf.set_draw_color(*C_SUN)
-    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-    pdf.ln(3)
+    safe_add_section(pdf, "1. ANÁLISIS DE INCIDENCIAS DEL PERIODO", min_space=120)
     pdf.set_font('Helvetica', '', 10)
     pdf.set_text_color(*C_DARK)
     pdf.multi_cell(0, 5, sanitizar_texto(
-        "El grafico izquierdo (Pareto) muestra la frecuencia de cada tipo de incidencia en el periodo. "
-        "Las barras ROJAS corresponden a fallas Kaizen — cada una representa $500 perdidos por el colaborador omiso. "
-        "El grafico derecho es el ranking de retardos: barras en NARANJA = exactamente 3 retardos "
-        "(un retardo mas y pierde el Bono de Puntualidad de $500); barras en ROJO = bono ya perdido (>=4 retardos)."
+        "El gráfico izquierdo muestra la frecuencia de cada tipo de incidencia de mayor a menor. "
+        "El gráfico derecho es el ranking de colaboradores con registros tardíos, ordenados por frecuencia. "
+        "Las incidencias marcadas en rojo representan los puntos de mayor impacto en el periodo."
     ), 0, 'J')
     pdf.ln(3)
-    pdf.image(p_chart1, x=10, w=190)
+    img_centrada(pdf, p_chart1, w=188)
     pdf.ln(5)
 
     # ---- SECCION 2: Tabla total a pagar ----
     pdf.add_page()
-    pdf.set_font('Helvetica', 'B', 14)
-    pdf.set_text_color(*C_NAVY)
-    pdf.cell(0, 8, sanitizar_texto("2. TOTAL A PAGAR POR RUBRO"), 0, 1, 'L')
-    pdf.set_draw_color(*C_SUN)
-    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    safe_add_section(pdf, "2. TOTAL A PAGAR POR RUBRO", min_space=80)
     pdf.ln(3)
     pdf.set_font('Helvetica', '', 10)
     pdf.set_text_color(*C_DARK)
@@ -541,11 +678,7 @@ def generar_pdf_nomina(df_nomina, df_incidencias, df_retardos, stats_kaizen, pro
 
     # ---- SECCION 3: Justificación de retenciones y advertencias ----
     pdf.add_page()
-    pdf.set_font('Helvetica', 'B', 14)
-    pdf.set_text_color(*C_NAVY)
-    pdf.cell(0, 8, sanitizar_texto("3. JUSTIFICACION DE RETENCIONES Y ADVERTENCIAS"), 0, 1, 'L')
-    pdf.set_draw_color(*C_SUN)
-    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    safe_add_section(pdf, "3. JUSTIFICACIÓN DE RETENCIONES Y ADVERTENCIAS", min_space=80)
     pdf.ln(3)
     pdf.set_font('Helvetica', '', 10)
     pdf.set_text_color(*C_DARK)
@@ -645,11 +778,7 @@ def generar_pdf_nomina(df_nomina, df_incidencias, df_retardos, stats_kaizen, pro
     # ---- SECCION 4: Horas semanales (checadores especiales) ----
     if horas_semana:
         pdf.add_page()
-        pdf.set_font('Helvetica', 'B', 14)
-        pdf.set_text_color(*C_NAVY)
-        pdf.cell(0, 8, sanitizar_texto("4. CONTROL DE HORAS SEMANALES — PERSONAL ADMINISTRATIVO"), 0, 1, 'L')
-        pdf.set_draw_color(*C_SUN)
-        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+        safe_add_section(pdf, "4. CONTROL DE HORAS SEMANALES — PERSONAL ADMINISTRATIVO", min_space=80)
         pdf.ln(3)
         pdf.set_font('Helvetica', '', 10)
         pdf.set_text_color(*C_DARK)
@@ -681,11 +810,7 @@ def generar_pdf_nomina(df_nomina, df_incidencias, df_retardos, stats_kaizen, pro
     # ---- SECCION 5 (o 4): Kaizen ----
     pdf.add_page()
     pdf.titulo_header = "REPORTE EJECUTIVO — NOMINA Y MEJORA CONTINUA"
-    pdf.set_font('Helvetica', 'B', 14)
-    pdf.set_text_color(*C_NAVY)
-    pdf.cell(0, 8, sanitizar_texto(f"{sec_base}. PROGRAMA KAIZEN — MEJORA CONTINUA"), 0, 1, 'L')
-    pdf.set_draw_color(*C_SUN)
-    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    safe_add_section(pdf, f"{sec_base}. PROGRAMA KAIZEN — MEJORA CONTINUA", min_space=100)
     pdf.ln(3)
     pct_c = (stats_kaizen['curr_si'] / tot_c * 100) if tot_c > 0 else 0
     pdf.set_font('Helvetica', '', 10)
@@ -698,7 +823,7 @@ def generar_pdf_nomina(df_nomina, df_incidencias, df_retardos, stats_kaizen, pro
         f"${stats_kaizen['curr_no'] * 500:,} en bonos no devengados."
     ), 0, 'J')
     pdf.ln(4)
-    pdf.image(p_kz, x=20, w=170)
+    img_centrada(pdf, p_kz, w=175)
     pdf.ln(5)
 
     if stats_kaizen['lista_no']:
@@ -711,14 +836,7 @@ def generar_pdf_nomina(df_nomina, df_incidencias, df_retardos, stats_kaizen, pro
             pdf.cell(0, 5, sanitizar_texto(f"  - {emp_no}   >>  Bono Admin/Kaizen PERDIDO: -$500"), 0, 1)
         pdf.set_text_color(*C_DARK)
 
-    pdf.ln(8)
-    pdf.set_font('Helvetica', 'B', 12)
-    pdf.set_fill_color(240, 245, 250)
-    pdf.set_text_color(*C_NAVY)
-    pdf.cell(0, 8, sanitizar_texto(" CONCLUSIONES Y RECOMENDACIONES EJECUTIVAS"), 1, 1, 'L', True)
-    pdf.set_font('Helvetica', '', 10)
-    pdf.set_text_color(*C_DARK)
-    pdf.multi_cell(0, 6, sanitizar_texto(pdf_dictamen), 1, 'L')
+    bloque_conclusion(pdf, pdf_dictamen)
 
     # ---- SECCION 6 (o 5): Propuestas ----
     if propuestas:
@@ -776,7 +894,7 @@ def generar_pdf_rondines(df_resumen, df_ron_raw, escaneos_totales, alertas_fraud
     col_ts  = find_col(df_ron_raw, ["Marca temporal", "Timestamp", "Fecha"])
 
     # ── S1: Barras de cumplimiento (verde>=90) + Pie antifraude ──
-    fig1, (ax_bar, ax_pie) = plt.subplots(1, 2, figsize=(13, 4))
+    fig1, (ax_bar, ax_pie) = plt.subplots(1, 2, figsize=(14, 5.5))
     if not df_resumen.empty:
         bar_colors = ['#10b981' if v >= 90 else '#dc2626' for v in df_resumen['% Cumplimiento']]
         ax_bar.barh(df_resumen['Colaborador'], df_resumen['% Cumplimiento'], color=bar_colors)
@@ -914,11 +1032,7 @@ def generar_pdf_rondines(df_resumen, df_ron_raw, escaneos_totales, alertas_fraud
 
     # S1 — Cumplimiento + Pie
     pdf.add_page()
-    pdf.set_font('Helvetica', 'B', 14)
-    pdf.set_text_color(*C_NAVY)
-    pdf.cell(0, 8, sanitizar_texto("1. CUMPLIMIENTO OPERATIVO"), 0, 1, 'L')
-    pdf.set_draw_color(*C_SUN)
-    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    safe_add_section(pdf, "1. CUMPLIMIENTO OPERATIVO", min_space=100)
     pdf.ln(3)
     pdf.set_font('Helvetica', '', 10)
     pdf.set_text_color(*C_DARK)
@@ -939,34 +1053,24 @@ def generar_pdf_rondines(df_resumen, df_ron_raw, escaneos_totales, alertas_fraud
     pdf.cell(0, 5, sanitizar_texto(f"Escaneos QR totales procesados en el periodo: {escaneos_totales}"), 0, 1)
     pdf.cell(0, 5, sanitizar_texto(f"Alertas de velocidad detectadas (posible fraude < 60 s): {alertas_fraude}"), 0, 1)
     pdf.ln(3)
-    if os.path.exists(p_s1):
-        pdf.image(p_s1, x=8, w=193)
+    img_centrada(pdf, p_s1, w=188)
 
     # S2 — Escaneos por residente
     if p_s2 and os.path.exists(p_s2):
         pdf.add_page()
-        pdf.set_font('Helvetica', 'B', 14)
-        pdf.set_text_color(*C_NAVY)
-        pdf.cell(0, 8, sanitizar_texto("2. FRECUENCIA DE VISITAS POR RESIDENTE"), 0, 1, 'L')
-        pdf.set_draw_color(*C_SUN)
-        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-        pdf.ln(3)
+        safe_add_section(pdf, "2. FRECUENCIA DE VISITAS POR RESIDENTE", min_space=100)
         pdf.set_font('Helvetica', '', 10)
         pdf.set_text_color(*C_DARK)
         pdf.multi_cell(0, 5, sanitizar_texto(
-            "Frecuencia total de escaneos QR por residente en el periodo evaluado. "
-            "Residentes con pocos escaneos pueden indicar puntos ciegos de supervision que requieren atencion."), 0, 'J')
+            "Frecuencia total de escaneos QR por residente en el periodo, ordenados de mayor a menor. "
+            "Los residentes con menor cobertura pueden indicar puntos ciegos de supervisión que requieren atención."), 0, 'J')
         pdf.ln(3)
-        pdf.image(p_s2, x=8, w=193)
+        img_centrada(pdf, p_s2, w=188)
 
     # S3 — Heatmap bloques horarios
     if p_s3 and os.path.exists(p_s3):
         pdf.add_page()
-        pdf.set_font('Helvetica', 'B', 14)
-        pdf.set_text_color(*C_NAVY)
-        pdf.cell(0, 8, sanitizar_texto("3. MAPA DE CALOR — RESIDENTE x BLOQUE HORARIO"), 0, 1, 'L')
-        pdf.set_draw_color(*C_SUN)
-        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+        safe_add_section(pdf, "3. MAPA DE CALOR — RESIDENTE × BLOQUE HORARIO", min_space=100)
         pdf.ln(3)
         pdf.set_font('Helvetica', '', 10)
         pdf.set_text_color(*C_DARK)
@@ -974,16 +1078,12 @@ def generar_pdf_rondines(df_resumen, df_ron_raw, escaneos_totales, alertas_fraud
             "Cada celda muestra cuantas veces fue visitado ese residente en ese bloque horario. "
             "Celdas en rojo/amarillo indican bloques con cobertura deficiente (posibles puntos ciegos nocturnos)."), 0, 'J')
         pdf.ln(3)
-        pdf.image(p_s3, x=8, w=193)
+        img_centrada(pdf, p_s3, w=188)
 
     # S4 — Heatmap cobertura diaria
     if p_s4 and os.path.exists(p_s4):
         pdf.add_page()
-        pdf.set_font('Helvetica', 'B', 14)
-        pdf.set_text_color(*C_NAVY)
-        pdf.cell(0, 8, sanitizar_texto("4. COBERTURA DIARIA POR RESIDENTE"), 0, 1, 'L')
-        pdf.set_draw_color(*C_SUN)
-        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+        safe_add_section(pdf, "4. COBERTURA DIARIA POR RESIDENTE", min_space=100)
         pdf.ln(3)
         pdf.set_font('Helvetica', '', 10)
         pdf.set_text_color(*C_DARK)
@@ -991,16 +1091,12 @@ def generar_pdf_rondines(df_resumen, df_ron_raw, escaneos_totales, alertas_fraud
             "Mapa de cobertura dia a dia. Verde = 3 o mas rondines ese dia. "
             "Rojo = ningun escaneo. Los dias sin color representan dias fuera del rango evaluado."), 0, 'J')
         pdf.ln(3)
-        pdf.image(p_s4, x=8, w=193)
+        img_centrada(pdf, p_s4, w=188)
 
     # S5 — Box plot velocidad de escaneo
     if p_s5 and os.path.exists(p_s5):
         pdf.add_page()
-        pdf.set_font('Helvetica', 'B', 14)
-        pdf.set_text_color(*C_NAVY)
-        pdf.cell(0, 8, sanitizar_texto("5. ANALISIS DE VELOCIDAD DE ESCANEO (DETECCION DE FRAUDE)"), 0, 1, 'L')
-        pdf.set_draw_color(*C_SUN)
-        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+        safe_add_section(pdf, "5. ANÁLISIS DE VELOCIDAD DE ESCANEO — DETECCIÓN DE FRAUDE", min_space=100)
         pdf.ln(3)
         pdf.set_font('Helvetica', '', 10)
         pdf.set_text_color(*C_DARK)
@@ -1010,15 +1106,11 @@ def generar_pdf_rondines(df_resumen, df_ron_raw, escaneos_totales, alertas_fraud
             "en menos tiempo es fisicamente imposible si implica desplazarse a otra habitacion "
             "y se considera un indicador fuerte de registro fraudulento."), 0, 'J')
         pdf.ln(3)
-        pdf.image(p_s5, x=8, w=193)
+        img_centrada(pdf, p_s5, w=188)
 
     # S6 — Tabla de evidencia de fraude
     pdf.add_page()
-    pdf.set_font('Helvetica', 'B', 14)
-    pdf.set_text_color(*C_NAVY)
-    pdf.cell(0, 8, sanitizar_texto("6. EVIDENCIA DE ALERTAS DE FRAUDE (< 60 s)"), 0, 1, 'L')
-    pdf.set_draw_color(*C_SUN)
-    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    safe_add_section(pdf, "6. EVIDENCIA DE ALERTAS — REGISTROS CON INTERVALO ANÓMALO", min_space=80)
     pdf.ln(3)
     pdf.set_font('Helvetica', '', 10)
     pdf.set_text_color(*C_DARK)
@@ -1056,14 +1148,7 @@ def generar_pdf_rondines(df_resumen, df_ron_raw, escaneos_totales, alertas_fraud
         pdf.set_text_color(*C_DARK)
         pdf.cell(0, 8, sanitizar_texto("No hay datos de rondines disponibles para el periodo seleccionado."), 0, 1)
 
-    pdf.ln(6)
-    pdf.set_font('Helvetica', 'B', 12)
-    pdf.set_fill_color(240, 245, 250)
-    pdf.set_text_color(*C_NAVY)
-    pdf.cell(0, 8, sanitizar_texto(" CONCLUSIONES Y RECOMENDACIONES EJECUTIVAS"), 1, 1, 'L', True)
-    pdf.set_font('Helvetica', '', 10)
-    pdf.set_text_color(*C_DARK)
-    pdf.multi_cell(0, 6, sanitizar_texto(pdf_dictamen), 1, 'L')
+    bloque_conclusion(pdf, pdf_dictamen)
 
     shutil.rmtree(temp_dir, ignore_errors=True)
     return pdf.output(dest='S').encode('latin-1', 'replace')
@@ -1206,7 +1291,7 @@ def procesar_super_nomina(df_bio, df_bitacora, df_kaizen, mes_num, anio_num):
     EMPLEADOS_DB_UPPER = {" ".join(k.upper().split()): v for k, v in EMPLEADOS_DB.items()}
     CHECADORES_ESP_SET = {" ".join(c.upper().split()) for c in CHECADORES_ESPECIALES}
     HORA_CORTE_NOCHE   = datetime.strptime("14:00", "%H:%M").time()
-    # Solo enfermeras de turno fijo (excluye supervisoras y personal no enfermero)
+    # Solo enfermeras de turno fijo reciben evaluación de retardo (excluye supervisoras y otro personal)
     ENFERMERAS_RETARDO = set(ENFERMERAS_LISTA) - set(SUPERVISORAS_ENFERMERIA)
 
     ret_list = []
@@ -1218,7 +1303,7 @@ def procesar_super_nomina(df_bio, df_bitacora, df_kaizen, mes_num, anio_num):
                 continue
             nm  = EMPLEADOS_DB_UPPER[ch]
 
-            # Solo aplica retardo a enfermeras de turno fijo, no a supervisoras ni otro personal
+            # Solo aplica retardo a enfermeras de turno fijo
             if nm not in ENFERMERAS_RETARDO:
                 continue
 
@@ -1496,7 +1581,7 @@ def main():
             st.plotly_chart(fig_gauge, use_container_width=True, config={'displayModeBar': False})
             st.markdown("</div>", unsafe_allow_html=True)
 
-        tabs_op = st.tabs(["Tablero Analítico", "Tendencias Base", "Evaluación RRHH", "Auditoría Legal", "Raw Data"])
+        tabs_op = st.tabs(["📊 Tablero Analítico", "📈 Tendencias Base", "👤 Evaluación RRHH", "⚖️ Auditoría Legal", "🗄️ Raw Data"])
         
         with tabs_op[0]:
             if st.button("📄 Exportar Reporte Ejecutivo (PDF)", type="primary"):
