@@ -454,6 +454,11 @@ def generar_pdf_nomina(df_nomina, df_incidencias, df_retardos, stats_kaizen, pro
         pdf.cell(130, 8, sanitizar_texto(f" Colaborador(a): {prop['nombre']}"), 'L T', 0, 'L', True)
         pdf.set_font('Helvetica', 'I', 9)
         pdf.cell(60, 8, sanitizar_texto(f"Fecha: {prop['fecha']} "), 'T R', 1, 'R', True)
+        pdf.set_font('Helvetica', 'B', 9)
+        pdf.set_text_color(*C_SUN)
+        area = prop.get('area', '')
+        if area:
+            pdf.cell(0, 6, sanitizar_texto(f" Área: {area}"), 'L R', 1, 'L', False)
         pdf.set_font('Helvetica', '', 10)
         pdf.set_text_color(*C_DARK)
         pdf.multi_cell(0, 6, sanitizar_texto(f"Propuesta:\n{prop['propuesta']}\n"), 'L R B', 'J', False)
@@ -626,66 +631,74 @@ def limpiar_biometrico(file_bytes):
     ws = wb.active
     datos = []
     emp = None
-    
+
     for row in ws.iter_rows(values_only=True):
         row_str = [str(cell) if cell is not None else "" for cell in row]
-        
+
         # Buscar la fila que contiene el nombre del empleado
         if any("ID:" in str(c) for c in row_str):
             for i, c in enumerate(row_str):
                 if "Nombre:" in str(c):
-                    try: 
-                        emp = row_str[i+2].strip()
-                    except IndexError: 
+                    try:
+                        # Normalizar: quitar espacios dobles y extremos
+                        emp = " ".join(row_str[i+2].split())
+                    except IndexError:
                         pass
                     break
-        
+
         # Si ya tenemos un empleado, buscar las celdas con formato de hora (ej. "08:15")
         elif emp and any(":" in str(cell) for cell in row_str):
-            for dia, celda in enumerate(row_str, 1): # Empezamos a contar desde el día 1
+            for dia, celda in enumerate(row_str, 1):  # Empezamos a contar desde el día 1
                 celda = str(celda).strip()
-                if len(celda) >= 5 and ":" in celda: 
+                if len(celda) >= 5 and ":" in celda:
                     # Tomamos los primeros 5 caracteres (HH:MM)
                     datos.append({"Checador": emp, "Día": dia, "Entrada": celda[:5]})
             # Reiniciamos el empleado después de procesar su fila de horarios
             emp = None
-            
+
     return pd.DataFrame(datos)
 
 def procesar_super_nomina(df_bio, df_bitacora, df_kaizen, mes_num, anio_num):
+    # Lookup case-insensitive: normalizar claves a MAYÚSCULAS para el match
+    EMPLEADOS_DB_UPPER = {k.upper(): v for k, v in EMPLEADOS_DB.items()}
+    CHECADORES_ESP_SET = {c.upper() for c in CHECADORES_ESPECIALES}
+
     ret_list = []
-    
+
     # 1. Procesar Biométrico (Retardos)
     if not df_bio.empty:
         for _, row in df_bio.iterrows():
-            ch = str(row['Checador']).upper()
-            if ch in EMPLEADOS_DB:
-                nm = EMPLEADOS_DB[ch]
-                ent = row['Entrada']
-                
-                # Ignorar empleados exentos
-                if ch in CHECADORES_ESPECIALES: 
-                    continue
-                    
-                try:
-                    he = datetime.strptime(ent, "%H:%M").time()
-                    lim = HORA_ENTRADA_NOCHE if nm in ENFERMERAS_NOCHE else HORA_ENTRADA_DIA
-                    
-                    if he > lim: 
-                        # Calcular minutos tarde
-                        dt_ent = datetime.combine(datetime.today(), he)
-                        dt_lim = datetime.combine(datetime.today(), lim)
-                        min_tarde = int((dt_ent - dt_lim).total_seconds() / 60)
-                        
-                        ret_list.append({
-                            "FECHA": f"{anio_num}-{mes_num:02d}-{row['Día']:02d}", 
-                            "EMPLEADO": nm, 
-                            "INCIDENCIA": "Retardo Biométrico", 
-                            "OBSERVACION": f"Entró a las {ent} ({min_tarde} min tarde)"
-                        })
-                except Exception: 
-                    pass
-                    
+            # Normalizar: mayúsculas + quitar espacios dobles
+            ch = " ".join(str(row['Checador']).upper().split())
+            if ch not in EMPLEADOS_DB_UPPER:
+                continue  # Empleado no registrado en el sistema, se ignora
+
+            nm = EMPLEADOS_DB_UPPER[ch]
+            ent = row['Entrada']
+
+            # Ignorar empleados exentos de retardos
+            if ch in CHECADORES_ESP_SET:
+                continue
+
+            try:
+                he = datetime.strptime(ent, "%H:%M").time()
+                lim = HORA_ENTRADA_NOCHE if nm in ENFERMERAS_NOCHE else HORA_ENTRADA_DIA
+
+                if he > lim:
+                    # Calcular minutos tarde
+                    dt_ent = datetime.combine(datetime.today(), he)
+                    dt_lim = datetime.combine(datetime.today(), lim)
+                    min_tarde = int((dt_ent - dt_lim).total_seconds() / 60)
+
+                    ret_list.append({
+                        "FECHA": f"{anio_num}-{mes_num:02d}-{row['Día']:02d}",
+                        "EMPLEADO": nm,
+                        "INCIDENCIA": "Retardo Biométrico",
+                        "OBSERVACION": f"Entró a las {ent} ({min_tarde} min tarde)"
+                    })
+            except Exception:
+                pass
+
     df_ret = pd.DataFrame(ret_list)
     
     # 2. Procesar Kaizen
@@ -697,24 +710,33 @@ def procesar_super_nomina(df_bio, df_bitacora, df_kaizen, mes_num, anio_num):
         df_kaizen['Marca temporal'] = pd.to_datetime(df_kaizen['Marca temporal'], dayfirst=True, errors='coerce')
         
         # Participación mes actual
+        # COLUMNAS REALES DEL FORM: Marca temporal | Sucursal | Colaborador | Área de la propuesta | Propuesta de mejora
+        COL_NOMBRE    = 'Colaborador'
+        COL_PROPUESTA = 'Propuesta de mejora'
+        COL_AREA      = 'Área de la propuesta'
+
         df_k_curr = df_kaizen[(df_kaizen['Marca temporal'].dt.month == mes_num) & (df_kaizen['Marca temporal'].dt.year == anio_num)]
-        part = df_k_curr.iloc[:, 1].str.strip().unique().tolist()
+        part = df_k_curr[COL_NOMBRE].str.strip().unique().tolist() if COL_NOMBRE in df_k_curr.columns else []
         nopart = [e for e in ENFERMERAS_LISTA if e not in part and e not in EXCEPCIONES_KAIZEN]
-        
+
         # Participación mes anterior (para tendencia)
         m_prev = mes_num - 1 if mes_num > 1 else 12
         a_prev = anio_num if mes_num > 1 else anio_num - 1
-        part_p = df_kaizen[(df_kaizen['Marca temporal'].dt.month == m_prev) & (df_kaizen['Marca temporal'].dt.year == a_prev)].iloc[:, 1].str.strip().unique().tolist()
-        
+        df_k_prev = df_kaizen[(df_kaizen['Marca temporal'].dt.month == m_prev) & (df_kaizen['Marca temporal'].dt.year == a_prev)]
+        part_p = df_k_prev[COL_NOMBRE].str.strip().unique().tolist() if COL_NOMBRE in df_k_prev.columns else []
+
         stats_k = {
-            'curr_si': len([e for e in ENFERMERAS_LISTA if e in part]), 
-            'curr_no': len(nopart), 
-            'prev_si': len([e for e in ENFERMERAS_LISTA if e in part_p]), 
-            'prev_no': len([e for e in ENFERMERAS_LISTA if e not in part_p and e not in EXCEPCIONES_KAIZEN]), 
+            'curr_si': len([e for e in ENFERMERAS_LISTA if e in part]),
+            'curr_no': len(nopart),
+            'prev_si': len([e for e in ENFERMERAS_LISTA if e in part_p]),
+            'prev_no': len([e for e in ENFERMERAS_LISTA if e not in part_p and e not in EXCEPCIONES_KAIZEN]),
             'lista_no': nopart
         }
-        
-        props = [{'nombre': r.iloc[1], 'fecha': r['Marca temporal'].strftime("%d/%m/%Y"), 'propuesta': str(r.iloc[2])} for _, r in df_k_curr.iterrows()]
+
+        props = [{'nombre': r.get(COL_NOMBRE, ''),
+                  'fecha': r['Marca temporal'].strftime("%d/%m/%Y"),
+                  'area': str(r.get(COL_AREA, '')),
+                  'propuesta': str(r.get(COL_PROPUESTA, ''))} for _, r in df_k_curr.iterrows()]
             
     # Generar incidencias por NO participar en Kaizen
     df_admin = pd.DataFrame([{"FECHA": f"{anio_num}-{mes_num:02d}-28", "EMPLEADO": e, "INCIDENCIA": "Falla Admin/Kaizen", "OBSERVACION": "No presentó propuesta"} for e in nopart])
