@@ -1,4 +1,5 @@
 import streamlit as st
+from streamlit_option_menu import option_menu
 import pandas as pd
 import gspread
 import json
@@ -6,6 +7,7 @@ import os
 import io
 from datetime import datetime, timedelta
 import plotly.express as px
+import plotly.graph_objects as go
 from fpdf import FPDF
 from openpyxl import load_workbook
 import matplotlib
@@ -21,57 +23,51 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PATH_CREDS = os.path.join(BASE_DIR, 'config', 'sunhaven-credentials.json')
 PATH_BITACORA = os.path.join(BASE_DIR, 'data', 'bitacora_interna.csv')
 
-st.set_page_config(page_title="Sunhaven Intelligence Suite", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Sunhaven Command Center", page_icon="📊", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
-    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-    .block-container { padding-top: 1.5rem; max-width: 95%; }
-    h1, h2, h3 { color: #1e293b; font-weight: 800; letter-spacing: -0.5px; }
-    .exec-header { background-color: #ffffff; padding: 2rem; border-radius: 4px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; }
-    .kpi-card { background-color: #ffffff; padding: 25px; border-radius: 4px; border: 1px solid #e2e8f0; text-align: center; }
-    .metric-label { font-size: 12px; color: #64748b; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
-    .metric-value { font-size: 34px; font-weight: 800; margin: 0; }
-    .footer-watermark { text-align: center; margin-top: 80px; opacity: 0.3; font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; }
-    .dictamen-box { background-color: #f8fafc; border-left: 6px solid #d35400; padding: 15px; border-radius: 4px; margin-bottom: 2rem; border-top: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;}
-    .dictamen-title { margin-top: 0; color: #1e293b; font-size: 13px; text-transform: uppercase; font-weight: 800; margin-bottom: 8px;}
-    .dictamen-text { margin: 0; color: #334155; font-size: 14px; line-height: 1.5;}
-    .stTabs [data-baseweb="tab-list"] { gap: 10px; }
-    .stTabs [data-baseweb="tab"] { height: 45px; background-color: #f1f5f9; border-radius: 4px; padding: 10px 20px; font-weight: 600; color: #475569; }
-    .stTabs [aria-selected="true"] { background-color: #1e293b !important; color: white !important; }
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    html, body, [class*="css"] { font-family: 'Inter', sans-serif; background-color: #F8FAFC; }
+    .block-container { padding-top: 1.5rem; max-width: 96%; }
     
-    /* ---------------------------------------------------
-       MEJORAS DE UX: OCULTAR BASURA Y ANIMAR BOTONES
-       --------------------------------------------------- */
-       
-    /* 1. Ocultar el menú de navegación residual de Streamlit (los nombres fantasma) */
+    /* Clean UI */
+    #MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;}
     [data-testid="stSidebarNav"] {display: none !important;}
     
-    /* 2. Crear la animación de vibración (Shake/Vibrate) */
-    @keyframes vibrar {
-        0% { transform: translateX(0); }
-        20% { transform: translateX(-2px) rotate(-1deg); }
-        40% { transform: translateX(2px) rotate(1deg); }
-        60% { transform: translateX(-2px) rotate(-1deg); }
-        80% { transform: translateX(2px) rotate(1deg); }
-        100% { transform: translateX(0); }
-    }
+    /* Typography */
+    h1, h2, h3 { color: #0F172A; font-weight: 800; letter-spacing: -0.025em; }
+    .section-title { font-size: 1.15rem; font-weight: 700; color: #334155; border-bottom: 1px solid #E2E8F0; padding-bottom: 0.75rem; margin-bottom: 1.25rem; margin-top: 0.5rem; }
     
-    /* 3. Aplicar la animación a los botones cuando se pasa el mouse (hover) */
-    .stButton > button, .stDownloadButton > button {
-        transition: all 0.2s ease-in-out !important; /* Transición suave */
-    }
+    /* Premium Cards */
+    .premium-card { background-color: #ffffff; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03); border: 1px solid #E2E8F0; margin-bottom: 1.5rem; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+    .premium-card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.08); }
     
-    .stButton > button:hover, .stDownloadButton > button:hover {
-        animation: vibrar 0.35s linear !important; /* Llama a la animación */
-    }
+    /* KPIs */
+    .kpi-container { display: flex; flex-direction: column; justify-content: space-between; height: 100%; }
+    .kpi-title { font-size: 0.8rem; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+    .kpi-value { font-size: 2.2rem; font-weight: 800; color: #0F172A; line-height: 1.1; }
+    .kpi-trend-up { color: #10B981; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 0.25rem; margin-top: 8px; }
+    .kpi-trend-down { color: #EF4444; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 0.25rem; margin-top: 8px; }
+    
+    /* Alerts */
+    .dictamen-box { background: linear-gradient(135deg, #ffffff 0%, #FFF7ED 100%); border-left: 6px solid #F97316; padding: 24px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); margin-bottom: 2rem; border-top: 1px solid #F1F5F9; border-right: 1px solid #F1F5F9; border-bottom: 1px solid #F1F5F9; }
+    .dictamen-title { color: #C2410C; font-size: 0.95rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0; margin-bottom: 10px;}
+    .dictamen-text { color: #334155; font-size: 1rem; line-height: 1.6; margin: 0;}
+    
+    /* Tabs & Buttons */
+    .stTabs [data-baseweb="tab-list"] { gap: 8px; border-bottom: 2px solid #E2E8F0; padding-bottom: 0; }
+    .stTabs [data-baseweb="tab"] { height: 48px; background-color: transparent; border: none; padding: 0 20px; font-weight: 600; color: #64748B; font-size: 0.95rem; border-radius: 6px 6px 0 0; transition: all 0.2s; }
+    .stTabs [aria-selected="true"] { color: #0F172A !important; border-bottom: 3px solid #F97316 !important; background-color: #ffffff !important; }
+    
+    @keyframes vibrar { 0% { transform: translateX(0); } 20% { transform: translateX(-2px) rotate(-1deg); } 40% { transform: translateX(2px) rotate(1deg); } 60% { transform: translateX(-2px) rotate(-1deg); } 80% { transform: translateX(2px) rotate(1deg); } 100% { transform: translateX(0); } }
+    .stButton > button, .stDownloadButton > button { border-radius: 6px !important; font-weight: 600 !important; transition: all 0.2s ease !important; }
+    .stButton > button[kind="primary"] { background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%) !important; border: none !important; color: white !important;}
+    .stButton > button:hover, .stDownloadButton > button:hover { animation: vibrar 0.35s linear !important; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
 </style>
 """, unsafe_allow_html=True)
 
-HEX_NAVY, HEX_RED, HEX_GREEN, HEX_SUN = "#1e293b", "#dc2626", "#16a34a", "#d35400"
+HEX_NAVY, HEX_RED, HEX_GREEN, HEX_SUN = "#1e293b", "#dc2626", "#10b981", "#d35400"
 C_NAVY, C_SUN, C_DARK, C_LIGHT = (31, 58, 82), (211, 84, 0), (44, 62, 80), (245, 247, 248)
 
 # --- REGLAS DE NEGOCIO ---
@@ -106,8 +102,35 @@ HORA_ENTRADA_DIA, HORA_ENTRADA_NOCHE = datetime.strptime("08:15", "%H:%M").time(
 TIPO_INCIDENCIAS = ["Falta de uniforme (Leve)", "Uso de celular (Leve)", "No hacer entrega (Leve)", "No hacer ronda (Leve)", "Salida anticipada (Leve)", "AGRESIÓN / CONFLICTO (Grave)", "REGLA DE ORO (Grave)"]
 
 # ==========================================
-# 1. CLASE MAESTRA DE PDF Y HELPERS
+# 1. CLASE MAESTRA DE PDF Y HELPERS UI
 # ==========================================
+def render_kpi_card(title, value, threshold=90, suffix="%"):
+    color = HEX_GREEN if float(value) >= threshold else HEX_RED
+    icon = "↗" if float(value) >= threshold else "↘"
+    css_class = "kpi-trend-up" if float(value) >= threshold else "kpi-trend-down"
+    st.markdown(f"""
+    <div class="premium-card" style="padding: 20px;">
+        <div class="kpi-container">
+            <div class="kpi-title">{title}</div>
+            <div class="kpi-value">{float(value):.1f}{suffix}</div>
+            <div class="{css_class}" style="color: {color};">
+                <span>{icon}</span> <span>{'Estado Óptimo' if float(value)>=threshold else 'Requiere Atención'}</span>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+def apply_plotly_theme(fig):
+    fig.update_layout(
+        plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_family="Inter",
+        font_color="#475569", title_font_color="#0F172A", title_font_weight="bold",
+        margin=dict(l=10, r=10, t=40, b=20),
+        hoverlabel=dict(bgcolor="white", font_size=13, font_family="Inter", bordercolor="#E2E8F0")
+    )
+    fig.update_xaxes(showgrid=False, zeroline=False, linecolor="#CBD5E1")
+    fig.update_yaxes(showgrid=True, gridcolor="#F1F5F9", zeroline=False)
+    return fig
+
 def sanitizar_texto(texto):
     return str(texto).replace('•', '-').replace('“', '"').replace('”', '"').replace('–', '-').encode('latin-1', 'replace').decode('latin-1')
 
@@ -201,7 +224,7 @@ def generar_dictamen_operativo(ico, df_a, df_c):
     causas_bajas = df_c[df_c['V'] < 90].sort_values('V', ascending=True)
 
     if ico >= 90:
-        html = "[ ESTADO ESTABLE ] Todas las áreas superan la línea base del 90%. Se recomienda mantener los protocolos de supervisión actuales."
+        html = "<strong>[ ESTADO ESTABLE ]</strong> Todas las áreas superan la línea base del 90%. Se recomienda mantener los protocolos de supervisión actuales."
         pdf_text = "El ecosistema operativo se encuentra en estado ESTABLE. Todas las métricas superan la línea base del 90%. Se recomienda mantener los protocolos de supervisión actuales y extender un reconocimiento al equipo."
     elif ico >= 80:
         peor_area = areas_bajas.iloc[0]['index'] if not areas_bajas.empty else "N/A"
@@ -223,19 +246,19 @@ def generar_dictamen_nomina(stats_kaizen, df_retardos):
     html, pdf_text = "", ""
     
     if pct_kz < 80:
-        html += f"<strong>[ MEJORA CONTINUA (KAIZEN) ]</strong> El {pct_kz:.1f}% del personal entregó sus propuestas. Nivel bajo de cumplimiento. Se recomienda aplicar deducción administrativa a los omisos.<br><br>"
+        html += f"• <strong>[ MEJORA CONTINUA (KAIZEN) ]</strong> El {pct_kz:.1f}% del personal entregó sus propuestas. Nivel bajo de cumplimiento. Se recomienda aplicar deducción administrativa a los omisos.<br>"
         pdf_text += f"1. PARTICIPACIÓN KAIZEN: El {pct_kz:.1f}% del personal entregó sus propuestas. Nivel bajo de cumplimiento. Se recomienda aplicar la deducción administrativa de inmediato a los omisos para fomentar la disciplina.\n\n"
     else:
-        html += f"<strong>[ MEJORA CONTINUA (KAIZEN) ]</strong> El {pct_kz:.1f}% del personal entregó sus propuestas. Nivel de participación excelente.<br><br>"
+        html += f"• <strong>[ MEJORA CONTINUA (KAIZEN) ]</strong> El {pct_kz:.1f}% del personal entregó sus propuestas. Nivel de participación excelente.<br>"
         pdf_text += f"1. PARTICIPACIÓN KAIZEN: El {pct_kz:.1f}% del personal entregó sus propuestas. Nivel de participación excelente. Se sugiere reconocer públicamente las mejores propuestas.\n\n"
         
     if not df_retardos.empty:
         peor_emp = df_retardos['EMPLEADO'].value_counts().index[0]
         max_ret = df_retardos['EMPLEADO'].value_counts().iloc[0]
-        html += f"<strong>[ PUNTUALIDAD ]</strong> El colaborador con mayor reincidencia de retardos biométricos es '{peor_emp}' ({max_ret} retardos). Se recomienda citación para diálogo y acta administrativa."
+        html += f"• <strong>[ PUNTUALIDAD ]</strong> El colaborador con mayor reincidencia de retardos biométricos es '{peor_emp}' ({max_ret} retardos). Se recomienda citación para diálogo y acta administrativa."
         pdf_text += f"2. PUNTUALIDAD: El colaborador con mayor reincidencia de retardos biométricos es '{peor_emp}' con {max_ret} retardos. Se recomienda citación para diálogo y acta administrativa en caso de continuar la tendencia."
     else:
-        html += "<strong>[ PUNTUALIDAD ]</strong> Excelente puntualidad general en este periodo. No hay reincidencias críticas."
+        html += "• <strong>[ PUNTUALIDAD ]</strong> Excelente puntualidad general en este periodo. No hay reincidencias críticas."
         pdf_text += "2. PUNTUALIDAD: Excelente puntualidad general en este periodo. No hay reincidencias críticas."
         
     return html, pdf_text
@@ -244,16 +267,16 @@ def generar_dictamen_rondines(alertas_fraude, df_resumen):
     html, pdf_text = "", ""
     
     if alertas_fraude > 0:
-        html += f"<strong>[ ALERTA ANTIFRAUDE ]</strong> Se han detectado {alertas_fraude} escaneos realizados en menos de 60 segundos entre sí. Cruzar horarios con cámaras de vigilancia.<br><br>"
+        html += f"• <strong>[ ALERTA ANTIFRAUDE ]</strong> Se han detectado {alertas_fraude} escaneos realizados en menos de 60 segundos entre sí. Cruzar horarios con cámaras de vigilancia.<br>"
         pdf_text += f"ALERTA DE AUDITORÍA: Se han detectado {alertas_fraude} escaneos realizados en menos de 60 segundos entre sí. Esto indica un fuerte indicio de llenado fraudulento de la bitácora desde un mismo dispositivo físico. Se exige cruzar estos horarios con las cámaras de vigilancia.\n\n"
     
     bajos = df_resumen[df_resumen['% Cumplimiento'] < 90]
     if not bajos.empty:
         nombres = ", ".join(bajos['Colaborador'].tolist())
-        html += f"<strong>[ DESEMPEÑO INSUFICIENTE ]</strong> Las siguientes enfermeras no alcanzaron la meta mínima del 90% en sus rondines: {nombres}. Se recomienda sanción administrativa."
+        html += f"• <strong>[ DESEMPEÑO INSUFICIENTE ]</strong> Las siguientes enfermeras no alcanzaron la meta mínima del 90% en sus rondines: {nombres}. Se recomienda sanción administrativa."
         pdf_text += f"DESEMPEÑO: Las siguientes enfermeras no alcanzaron la meta mínima del 90% en sus rondines: {nombres}. Se recomienda aplicar la sanción administrativa y dialogar para evitar negligencias nocturnas."
     else:
-        html += "<strong>[ DESEMPEÑO ÓPTIMO ]</strong> El equipo nocturno cumplió satisfactoriamente con la meta de rondas de seguridad."
+        html += "• <strong>[ DESEMPEÑO ÓPTIMO ]</strong> El equipo nocturno cumplió satisfactoriamente con la meta de rondas de seguridad."
         pdf_text += "DESEMPEÑO: El equipo nocturno cumplió satisfactoriamente con la meta de rondas de seguridad establecidas."
         
     return html, pdf_text
@@ -721,50 +744,310 @@ def generar_pdf_nomina(df_nomina, df_incidencias, df_retardos, stats_kaizen, pro
     shutil.rmtree(temp_dir, ignore_errors=True)
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
-def generar_pdf_rondines(df_resumen, escaneos_totales, alertas_fraude, fecha_str, pdf_dictamen):
+def generar_pdf_rondines(df_resumen, df_ron_raw, escaneos_totales, alertas_fraude, fecha_str, pdf_dictamen):
+    import seaborn as sns
+    import matplotlib.colors as mcolors
     temp_dir = os.path.join(os.path.dirname(__file__), f'temp_img_{uuid.uuid4().hex}')
     os.makedirs(temp_dir, exist_ok=True)
-    
-    plt.figure(figsize=(7, 4))
-    plt.bar(df_resumen['Colaborador'], df_resumen['% Cumplimiento'], color=HEX_NAVY)
-    plt.axhline(90, color='red', linestyle='--')
-    plt.title('% Cumplimiento por Colaborador', fontsize=10, fontweight='bold')
-    plt.tight_layout()
-    p_bar = os.path.join(temp_dir, 'bar_ron.png')
-    plt.savefig(p_bar)
-    plt.close()
 
+    def find_col(df, candidates):
+        for c in candidates:
+            if c in df.columns:
+                return c
+        return None
+
+    col_enf = find_col(df_ron_raw, ["Enfermera", "Colaborador", "Nombre"])
+    col_res = find_col(df_ron_raw, ["Residente Visitado", "Nombre del Residente", "Residente", "Paciente", "Habitacion"])
+    col_ts  = find_col(df_ron_raw, ["Marca temporal", "Timestamp", "Fecha"])
+
+    # ── S1: Barras de cumplimiento (verde>=90) + Pie antifraude ──
+    fig1, (ax_bar, ax_pie) = plt.subplots(1, 2, figsize=(13, 4))
+    if not df_resumen.empty:
+        bar_colors = ['#10b981' if v >= 90 else '#dc2626' for v in df_resumen['% Cumplimiento']]
+        ax_bar.barh(df_resumen['Colaborador'], df_resumen['% Cumplimiento'], color=bar_colors)
+        ax_bar.axvline(90, color='gray', linestyle='--', linewidth=1.2, label='Meta 90%')
+        ax_bar.set_xlim(0, 108)
+        ax_bar.set_title('% Cumplimiento por Colaborador', fontsize=10, fontweight='bold')
+        ax_bar.set_xlabel('Cumplimiento %')
+        ax_bar.legend(fontsize=8)
+        for i, v in enumerate(df_resumen['% Cumplimiento']):
+            ax_bar.text(v + 0.5, i, f'{v:.1f}%', va='center', fontsize=8)
+    val_ok   = max(escaneos_totales - alertas_fraude, 0)
+    pie_vals = [val_ok, alertas_fraude] if (val_ok + alertas_fraude) > 0 else [1, 0]
+    wedge_c  = ['#10b981', '#dc2626']
+    ax_pie.pie(pie_vals, labels=['Escaneos Validos', 'Alertas Fraude'],
+               autopct='%1.1f%%', colors=wedge_c, startangle=90,
+               wedgeprops={'width': 0.60})
+    ax_pie.set_title(f'Auditoria Antifraude\nTotal: {escaneos_totales} escaneos', fontsize=10, fontweight='bold')
+    fig1.tight_layout()
+    p_s1 = os.path.join(temp_dir, 's1_cum.png')
+    fig1.savefig(p_s1, dpi=140, bbox_inches='tight')
+    plt.close(fig1)
+
+    # ── S2: Barras horizontales escaneos por residente ────────────
+    p_s2 = None
+    if col_res and not df_ron_raw.empty:
+        try:
+            vc = df_ron_raw[col_res].value_counts().head(20)
+            fig2, ax2 = plt.subplots(figsize=(10, max(4, len(vc) * 0.38)))
+            ax2.barh(vc.index[::-1], vc.values[::-1], color='#1e293b')
+            for i, v in enumerate(vc.values[::-1]):
+                ax2.text(v + 0.1, i, str(v), va='center', fontsize=8)
+            ax2.set_title('Total de Escaneos QR por Residente', fontsize=10, fontweight='bold')
+            ax2.set_xlabel('Escaneos')
+            fig2.tight_layout()
+            p_s2 = os.path.join(temp_dir, 's2_res.png')
+            fig2.savefig(p_s2, dpi=140, bbox_inches='tight')
+            plt.close(fig2)
+        except Exception:
+            pass
+
+    # ── S3: Heatmap residente x bloque horario (seaborn) ─────────
+    p_s3 = None
+    if col_res and col_ts and not df_ron_raw.empty:
+        try:
+            df_h = df_ron_raw.copy()
+            df_h[col_ts] = pd.to_datetime(df_h[col_ts], dayfirst=True, errors='coerce')
+            df_h['Bloque'] = df_h[col_ts].dt.hour.apply(
+                lambda h: 'B1 (23h)' if 21 <= h <= 23 else (
+                    'B2 (02h)' if 0 <= h <= 3 else (
+                        'B3 (05h)' if 4 <= h <= 6 else None)))
+            df_hb = (df_h[df_h['Bloque'].notnull()]
+                     .groupby([col_res, 'Bloque']).size()
+                     .unstack(fill_value=0))
+            for b in ['B1 (23h)', 'B2 (02h)', 'B3 (05h)']:
+                if b not in df_hb.columns:
+                    df_hb[b] = 0
+            df_hb = df_hb[['B1 (23h)', 'B2 (02h)', 'B3 (05h)']]
+            fig3, ax3 = plt.subplots(figsize=(7, max(4, len(df_hb) * 0.38)))
+            sns.heatmap(df_hb, annot=True, fmt='d', cmap='RdYlGn',
+                        ax=ax3, linewidths=0.5, linecolor='#E2E8F0')
+            ax3.set_title('Intensidad de Visitas por Residente y Bloque Horario',
+                          fontsize=9, fontweight='bold')
+            ax3.set_xlabel('')
+            fig3.tight_layout()
+            p_s3 = os.path.join(temp_dir, 's3_heat.png')
+            fig3.savefig(p_s3, dpi=140, bbox_inches='tight')
+            plt.close(fig3)
+        except Exception:
+            pass
+
+    # ── S4: Heatmap residente x dias (cobertura diaria) ──────────
+    p_s4 = None
+    if col_res and col_ts and not df_ron_raw.empty:
+        try:
+            df_d = df_ron_raw.copy()
+            df_d[col_ts] = pd.to_datetime(df_d[col_ts], dayfirst=True, errors='coerce')
+            df_d['Fecha'] = df_d[col_ts].dt.date
+            pivot      = df_d.groupby([col_res, 'Fecha']).size().unstack(fill_value=0)
+            pivot_clip = pivot.clip(upper=3)
+            cmap4 = mcolors.ListedColormap(['#dc2626', '#f97316', '#fbbf24', '#10b981'])
+            fig4, ax4 = plt.subplots(
+                figsize=(max(8, len(pivot_clip.columns) * 0.42),
+                         max(4, len(pivot_clip) * 0.38)))
+            im = ax4.imshow(pivot_clip.values, aspect='auto', cmap=cmap4, vmin=0, vmax=3)
+            ax4.set_xticks(range(len(pivot_clip.columns)))
+            ax4.set_xticklabels([str(c) for c in pivot_clip.columns],
+                                rotation=45, ha='right', fontsize=7)
+            ax4.set_yticks(range(len(pivot_clip.index)))
+            ax4.set_yticklabels(pivot_clip.index, fontsize=7)
+            ax4.set_title('Cobertura Diaria por Residente  (0=rojo, 1=naranja, 2=amarillo, 3+=verde)',
+                          fontsize=8, fontweight='bold')
+            cbar = fig4.colorbar(im, ax=ax4, ticks=[0, 1, 2, 3])
+            cbar.ax.set_yticklabels(['0', '1', '2', '3+'])
+            fig4.tight_layout()
+            p_s4 = os.path.join(temp_dir, 's4_dias.png')
+            fig4.savefig(p_s4, dpi=110, bbox_inches='tight')
+            plt.close(fig4)
+        except Exception:
+            pass
+
+    # ── S5: Box plot tiempo entre escaneos por enfermera ─────────
+    p_s5 = None
+    if col_enf and col_ts and not df_ron_raw.empty:
+        try:
+            df_s = df_ron_raw.copy()
+            df_s[col_ts] = pd.to_datetime(df_s[col_ts], dayfirst=True, errors='coerce')
+            df_s = df_s.sort_values([col_enf, col_ts])
+            df_s['Diff'] = df_s.groupby(col_enf)[col_ts].diff().dt.total_seconds()
+            df_s2 = df_s[df_s['Diff'].notnull() & (df_s['Diff'] < 600)]
+            if not df_s2.empty:
+                groups = [g['Diff'].values for _, g in df_s2.groupby(col_enf)]
+                labels = [k for k, _ in df_s2.groupby(col_enf)]
+                fig5, ax5 = plt.subplots(figsize=(9, 4))
+                bp = ax5.boxplot(groups, labels=labels, patch_artist=True,
+                                 boxprops=dict(facecolor='#bfdbfe'),
+                                 medianprops=dict(color='#1e293b', linewidth=2))
+                ax5.axhline(60, color='#dc2626', linestyle='--',
+                            linewidth=1.5, label='Limite fraude (60s)')
+                ax5.set_ylabel('Segundos entre escaneos')
+                ax5.set_title('Distribucion de Tiempo entre Escaneos por Enfermera',
+                              fontsize=9, fontweight='bold')
+                ax5.legend(fontsize=8)
+                ax5.tick_params(axis='x', rotation=15, labelsize=8)
+                fig5.tight_layout()
+                p_s5 = os.path.join(temp_dir, 's5_box.png')
+                fig5.savefig(p_s5, dpi=140, bbox_inches='tight')
+                plt.close(fig5)
+        except Exception:
+            pass
+
+    # ── Construir PDF ─────────────────────────────────────────────
     pdf = SunhavenPDF()
-    pdf.titulo_header = "REPORTE DE AUDITORÍA - RONDINES NOCTURNOS"
-    pdf.cover_page("SUPERVISIÓN Y CUIDADO CONTINUO", "Auditoría Operativa y Antifraude", fecha_str)
-    
+    pdf.titulo_header = "REPORTE DE AUDITORIA - RONDINES NOCTURNOS"
+    pdf.cover_page("SUPERVISION Y CUIDADO CONTINUO", "Auditoria Operativa y Antifraude", fecha_str)
+
+    # S1 — Cumplimiento + Pie
     pdf.add_page()
     pdf.set_font('Helvetica', 'B', 14)
     pdf.set_text_color(*C_NAVY)
-    pdf.cell(0, 8, sanitizar_texto("1. CUMPLIMIENTO OPERATIVO MENSUAL"), 0, 1, 'L')
+    pdf.cell(0, 8, sanitizar_texto("1. CUMPLIMIENTO OPERATIVO"), 0, 1, 'L')
+    pdf.set_draw_color(*C_SUN)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(3)
     pdf.set_font('Helvetica', '', 10)
     pdf.set_text_color(*C_DARK)
-    pdf.multi_cell(0, 6, sanitizar_texto("Esquema: 3 rondines obligatorios por noche. La siguiente tabla evalúa el cumplimiento según el rol asignado (Los días domingo están excluidos del cálculo de desempeño):"))
-    pdf.ln(5)
-    
-    datos_tabla = [[r['Colaborador'], r['Turnos Meta'], r['Meta Rondas'], r['Rondas Real.'], f"{r['% Cumplimiento']:.1f}%"] for _, r in df_resumen.iterrows()]
-    tabla_centrada(pdf, ["Colaborador", "Turnos Meta", "Meta Rondas", "Rondas Real.", "% Cumplimiento"], datos_tabla, [60, 30, 30, 30, 40])
-    pdf.ln(10)
-    
-    pdf.set_font('Helvetica', 'B', 10)
-    pdf.cell(0, 6, sanitizar_texto("Resumen de Escaneos y Auditoría Antifraude:"), 0, 1)
+    pdf.multi_cell(0, 5, sanitizar_texto(
+        "Esquema: 3 rondines obligatorios por noche en 3 bloques horarios (B1: 21-23h, B2: 0-3h, B3: 4-6h). "
+        "Verde = cumplimiento >= 90%. Los domingos estan excluidos del calculo de desempeno."), 0, 'J')
+    pdf.ln(2)
+    datos_tabla = [
+        [r['Colaborador'], str(r['Turnos Meta']), str(r['Meta Rondas']),
+         str(r['Rondas Real.']), f"{r['% Cumplimiento']:.1f}%"]
+        for _, r in df_resumen.iterrows()
+    ]
+    tabla_centrada(pdf,
+        ["Colaborador", "Turnos Meta", "Meta Rondas", "Rondas Real.", "% Cumplimiento"],
+        datos_tabla, [60, 28, 28, 28, 38])
+    pdf.ln(4)
     pdf.set_font('Helvetica', '', 10)
-    pdf.cell(0, 6, sanitizar_texto(f"Total de escaneos QR procesados en el periodo: {escaneos_totales}"), 0, 1)
-    pdf.cell(0, 6, sanitizar_texto(f"Alertas de velocidad detectadas (posible fraude < 60s): {alertas_fraude}"), 0, 1)
-    pdf.ln(5)
-    
-    pdf.image(p_bar, x=30, w=150)
-    pdf.ln(80)
+    pdf.cell(0, 5, sanitizar_texto(f"Escaneos QR totales procesados en el periodo: {escaneos_totales}"), 0, 1)
+    pdf.cell(0, 5, sanitizar_texto(f"Alertas de velocidad detectadas (posible fraude < 60 s): {alertas_fraude}"), 0, 1)
+    pdf.ln(3)
+    if os.path.exists(p_s1):
+        pdf.image(p_s1, x=8, w=193)
 
+    # S2 — Escaneos por residente
+    if p_s2 and os.path.exists(p_s2):
+        pdf.add_page()
+        pdf.set_font('Helvetica', 'B', 14)
+        pdf.set_text_color(*C_NAVY)
+        pdf.cell(0, 8, sanitizar_texto("2. FRECUENCIA DE VISITAS POR RESIDENTE"), 0, 1, 'L')
+        pdf.set_draw_color(*C_SUN)
+        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+        pdf.ln(3)
+        pdf.set_font('Helvetica', '', 10)
+        pdf.set_text_color(*C_DARK)
+        pdf.multi_cell(0, 5, sanitizar_texto(
+            "Frecuencia total de escaneos QR por residente en el periodo evaluado. "
+            "Residentes con pocos escaneos pueden indicar puntos ciegos de supervision que requieren atencion."), 0, 'J')
+        pdf.ln(3)
+        pdf.image(p_s2, x=8, w=193)
+
+    # S3 — Heatmap bloques horarios
+    if p_s3 and os.path.exists(p_s3):
+        pdf.add_page()
+        pdf.set_font('Helvetica', 'B', 14)
+        pdf.set_text_color(*C_NAVY)
+        pdf.cell(0, 8, sanitizar_texto("3. MAPA DE CALOR — RESIDENTE x BLOQUE HORARIO"), 0, 1, 'L')
+        pdf.set_draw_color(*C_SUN)
+        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+        pdf.ln(3)
+        pdf.set_font('Helvetica', '', 10)
+        pdf.set_text_color(*C_DARK)
+        pdf.multi_cell(0, 5, sanitizar_texto(
+            "Cada celda muestra cuantas veces fue visitado ese residente en ese bloque horario. "
+            "Celdas en rojo/amarillo indican bloques con cobertura deficiente (posibles puntos ciegos nocturnos)."), 0, 'J')
+        pdf.ln(3)
+        pdf.image(p_s3, x=8, w=193)
+
+    # S4 — Heatmap cobertura diaria
+    if p_s4 and os.path.exists(p_s4):
+        pdf.add_page()
+        pdf.set_font('Helvetica', 'B', 14)
+        pdf.set_text_color(*C_NAVY)
+        pdf.cell(0, 8, sanitizar_texto("4. COBERTURA DIARIA POR RESIDENTE"), 0, 1, 'L')
+        pdf.set_draw_color(*C_SUN)
+        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+        pdf.ln(3)
+        pdf.set_font('Helvetica', '', 10)
+        pdf.set_text_color(*C_DARK)
+        pdf.multi_cell(0, 5, sanitizar_texto(
+            "Mapa de cobertura dia a dia. Verde = 3 o mas rondines ese dia. "
+            "Rojo = ningun escaneo. Los dias sin color representan dias fuera del rango evaluado."), 0, 'J')
+        pdf.ln(3)
+        pdf.image(p_s4, x=8, w=193)
+
+    # S5 — Box plot velocidad de escaneo
+    if p_s5 and os.path.exists(p_s5):
+        pdf.add_page()
+        pdf.set_font('Helvetica', 'B', 14)
+        pdf.set_text_color(*C_NAVY)
+        pdf.cell(0, 8, sanitizar_texto("5. ANALISIS DE VELOCIDAD DE ESCANEO (DETECCION DE FRAUDE)"), 0, 1, 'L')
+        pdf.set_draw_color(*C_SUN)
+        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+        pdf.ln(3)
+        pdf.set_font('Helvetica', '', 10)
+        pdf.set_text_color(*C_DARK)
+        pdf.multi_cell(0, 5, sanitizar_texto(
+            "Distribucion del tiempo transcurrido entre escaneos consecutivos por enfermera. "
+            "La linea roja punteada marca el umbral de 60 segundos: cualquier escaneo realizado "
+            "en menos tiempo es fisicamente imposible si implica desplazarse a otra habitacion "
+            "y se considera un indicador fuerte de registro fraudulento."), 0, 'J')
+        pdf.ln(3)
+        pdf.image(p_s5, x=8, w=193)
+
+    # S6 — Tabla de evidencia de fraude
+    pdf.add_page()
+    pdf.set_font('Helvetica', 'B', 14)
+    pdf.set_text_color(*C_NAVY)
+    pdf.cell(0, 8, sanitizar_texto("6. EVIDENCIA DE ALERTAS DE FRAUDE (< 60 s)"), 0, 1, 'L')
+    pdf.set_draw_color(*C_SUN)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(3)
+    pdf.set_font('Helvetica', '', 10)
+    pdf.set_text_color(*C_DARK)
+    pdf.multi_cell(0, 5, sanitizar_texto(
+        "Registro completo de los escaneos que presentaron un intervalo menor a 60 segundos respecto "
+        "al escaneo inmediatamente anterior del mismo colaborador. Esta evidencia debe cruzarse con "
+        "el sistema de camaras de vigilancia para confirmar o descartar irregularidades."), 0, 'J')
+    pdf.ln(3)
+
+    if col_enf and col_ts and not df_ron_raw.empty:
+        try:
+            df_fr = df_ron_raw.copy()
+            df_fr[col_ts] = pd.to_datetime(df_fr[col_ts], dayfirst=True, errors='coerce')
+            df_fr = df_fr.sort_values([col_enf, col_ts])
+            df_fr['Diff_s'] = df_fr.groupby(col_enf)[col_ts].diff().dt.total_seconds()
+            df_fraud = df_fr[df_fr['Diff_s'] < 60].copy()
+            if not df_fraud.empty:
+                df_fraud['Diff_s'] = df_fraud['Diff_s'].apply(lambda x: f"{x:.0f}s")
+                cols_sel    = [col_enf, col_ts] + ([col_res] if col_res else []) + ['Diff_s']
+                labels_show = ['Colaborador', 'Fecha / Hora'] + (['Residente Visitado'] if col_res else []) + ['Seg vs Ant.']
+                widths_show = [45, 45] + ([60] if col_res else []) + [22]
+                datos_fr    = [[sanitizar_texto(str(r[c])[:38]) for c in cols_sel]
+                               for _, r in df_fraud.iterrows()]
+                tabla_centrada(pdf, labels_show, datos_fr, widths_show)
+            else:
+                pdf.set_font('Helvetica', 'I', 11)
+                pdf.set_text_color(16, 185, 129)
+                pdf.cell(0, 8, sanitizar_texto("Sin alertas de fraude en el periodo evaluado.  Auditoria limpia."), 0, 1)
+        except Exception as ex:
+            pdf.set_font('Helvetica', 'I', 9)
+            pdf.set_text_color(*C_DARK)
+            pdf.cell(0, 8, sanitizar_texto(f"(No se pudo generar la tabla de evidencia: {ex})"), 0, 1)
+    else:
+        pdf.set_font('Helvetica', 'I', 10)
+        pdf.set_text_color(*C_DARK)
+        pdf.cell(0, 8, sanitizar_texto("No hay datos de rondines disponibles para el periodo seleccionado."), 0, 1)
+
+    pdf.ln(6)
     pdf.set_font('Helvetica', 'B', 12)
     pdf.set_fill_color(240, 245, 250)
+    pdf.set_text_color(*C_NAVY)
     pdf.cell(0, 8, sanitizar_texto(" CONCLUSIONES Y RECOMENDACIONES EJECUTIVAS"), 1, 1, 'L', True)
     pdf.set_font('Helvetica', '', 10)
+    pdf.set_text_color(*C_DARK)
     pdf.multi_cell(0, 6, sanitizar_texto(pdf_dictamen), 1, 'L')
 
     shutil.rmtree(temp_dir, ignore_errors=True)
@@ -808,17 +1091,14 @@ def generar_pdf_legal_bytes(categorias_dict, checks_dict, porcentaje):
 def cargar_datos_operaciones():
     try:
         if "GOOGLE_JSON" in st.secrets:
-            # Opción 1: Streamlit Cloud (Secretos)
             creds_dict = json.loads(st.secrets["GOOGLE_JSON"])
             gc = gspread.service_account_from_dict(creds_dict)
         elif os.path.exists(PATH_CREDS):
-            # Opción 2: Local (Archivo JSON)
             gc = gspread.service_account(filename=PATH_CREDS)
         else:
-            st.error("No se encontraron credenciales de Google (Ni en Secrets ni archivo local).")
+            st.error("No se encontraron credenciales de Google.")
             return None
 
-        # Conectar a las 3 hojas de cálculo
         sheet_n = gc.open_by_url("https://docs.google.com/spreadsheets/d/10wWKmjsyj501OXaFWs7Rd_XF_2R-H0YzV66B2K6HvPE/edit")
         sheet_v = gc.open_by_url("https://docs.google.com/spreadsheets/d/1C1AVmNXG0ggRekB1HF4_IhX-NGiTkwzgvZn2Z31rCsc/edit")
         sheet_s = gc.open_by_url("https://docs.google.com/spreadsheets/d/1wdP3mbW_k4a90ubPG-ZQy8FvfAZiwKnhPjCj1BZHcBs/edit")
@@ -829,14 +1109,11 @@ def cargar_datos_operaciones():
             "s": pd.DataFrame(sheet_s.get_worksheet(0).get_all_records())
         }
         
-        # Limpiar nombres de columnas
         for k in dfs:
             if not dfs[k].empty:
                 dfs[k].columns = dfs[k].columns.str.strip().str.replace('\n', ' ')
         return dfs
-        
     except Exception as e:
-        # En caso de error (ej. cuota excedida, no hay internet), devolvemos None
         print(f"Error interno en cargar_datos_operaciones: {e}")
         return None
 
@@ -862,7 +1139,6 @@ def cargar_bitacora():
         return pd.read_csv(PATH_BITACORA)
     else:
         df = pd.DataFrame(columns=["FECHA", "EMPLEADO", "INCIDENCIA", "OBSERVACION"])
-        # Asegurar que el directorio data/ exista
         os.makedirs(os.path.dirname(PATH_BITACORA), exist_ok=True)
         df.to_csv(PATH_BITACORA, index=False)
         return df
@@ -880,7 +1156,6 @@ def borrar_incidencia(index):
         df.to_csv(PATH_BITACORA, index=False)
 
 def limpiar_biometrico(file_bytes):
-    # Lector de Excel ROBUSTO para el checador
     wb = load_workbook(io.BytesIO(file_bytes), data_only=True)
     ws = wb.active
     datos = []
@@ -889,42 +1164,36 @@ def limpiar_biometrico(file_bytes):
     for row in ws.iter_rows(values_only=True):
         row_str = [str(cell) if cell is not None else "" for cell in row]
         
-        # Buscar la fila que contiene el nombre del empleado
         if any("ID:" in str(c) for c in row_str):
             for i, c in enumerate(row_str):
                 if "Nombre:" in str(c):
                     try:
-                        emp = " ".join(row_str[i+2].split())  # normaliza espacios dobles
+                        emp = " ".join(row_str[i+2].split())  
                     except IndexError:
                         pass
                     break
         
-        # Si ya tenemos un empleado, buscar las celdas con formato de hora (ej. "08:15")
         elif emp and any(":" in str(cell) for cell in row_str):
-            for dia, celda in enumerate(row_str, 1): # Empezamos a contar desde el día 1
+            for dia, celda in enumerate(row_str, 1):
                 celda = str(celda).strip()
                 if len(celda) >= 5 and ":" in celda:
-                    # Entrada = primeros 5 chars; Salida = últimos 5 chars si hay >=10
                     datos.append({
                         "Checador": emp,
                         "Día": dia,
                         "Entrada": celda[:5],
                         "Salida": celda[-5:] if len(celda) >= 10 else ""
                     })
-            # Reiniciamos el empleado después de procesar su fila de horarios
             emp = None
             
     return pd.DataFrame(datos)
 
 def procesar_super_nomina(df_bio, df_bitacora, df_kaizen, mes_num, anio_num):
-    # Lookup case-insensitive para evitar bugs de mayúsculas/minúsculas
     EMPLEADOS_DB_UPPER = {" ".join(k.upper().split()): v for k, v in EMPLEADOS_DB.items()}
     CHECADORES_ESP_SET = {" ".join(c.upper().split()) for c in CHECADORES_ESPECIALES}
     HORA_CORTE_NOCHE   = datetime.strptime("14:00", "%H:%M").time()
 
     ret_list = []
 
-    # 1. Procesar Biométrico (Retardos)
     if not df_bio.empty:
         for _, row in df_bio.iterrows():
             ch = " ".join(str(row['Checador']).upper().split())
@@ -932,7 +1201,6 @@ def procesar_super_nomina(df_bio, df_bitacora, df_kaizen, mes_num, anio_num):
                 continue
             nm  = EMPLEADOS_DB_UPPER[ch]
 
-            # Ignorar checadores especiales (administrativos)
             if ch in CHECADORES_ESP_SET:
                 continue
 
@@ -940,7 +1208,6 @@ def procesar_super_nomina(df_bio, df_bitacora, df_kaizen, mes_num, anio_num):
             try:
                 he = datetime.strptime(ent, "%H:%M").time()
 
-                # Filtro 14:00: ignorar marcaciones diurnas de enfermeras de turno nocturno
                 if nm in ENFERMERAS_NOCHE and he < HORA_CORTE_NOCHE:
                     continue
 
@@ -961,7 +1228,6 @@ def procesar_super_nomina(df_bio, df_bitacora, df_kaizen, mes_num, anio_num):
 
     df_ret = pd.DataFrame(ret_list)
 
-    # 2. Procesar Kaizen (usando nombres de columnas en lugar de posición)
     COL_NOMBRE    = 'Colaborador'
     COL_PROPUESTA = 'Propuesta de mejora'
     COL_AREA      = 'Area de la propuesta'
@@ -972,14 +1238,12 @@ def procesar_super_nomina(df_bio, df_bitacora, df_kaizen, mes_num, anio_num):
     if not df_kaizen.empty:
         df_kaizen['Marca temporal'] = pd.to_datetime(df_kaizen['Marca temporal'], dayfirst=True, errors='coerce')
 
-        # Detectar nombre real de la columna Área (puede tener acento o no)
         col_area_real = COL_AREA
         for c in df_kaizen.columns:
             if 'rea' in c.lower() and 'propuesta' in c.lower():
                 col_area_real = c
                 break
 
-        # Mes actual
         df_k_curr = df_kaizen[
             (df_kaizen['Marca temporal'].dt.month == mes_num) &
             (df_kaizen['Marca temporal'].dt.year  == anio_num)
@@ -987,7 +1251,6 @@ def procesar_super_nomina(df_bio, df_bitacora, df_kaizen, mes_num, anio_num):
         part   = df_k_curr[COL_NOMBRE].str.strip().unique().tolist() if COL_NOMBRE in df_k_curr.columns else []
         nopart = [e for e in ENFERMERAS_LISTA if e not in part and e not in EXCEPCIONES_KAIZEN]
 
-        # Mes anterior (tendencia)
         m_prev = mes_num - 1 if mes_num > 1 else 12
         a_prev = anio_num  if mes_num > 1 else anio_num - 1
         df_k_prev = df_kaizen[
@@ -1006,12 +1269,11 @@ def procesar_super_nomina(df_bio, df_bitacora, df_kaizen, mes_num, anio_num):
 
         props = [{
             'nombre':    str(r.get(COL_NOMBRE, '')),
-            'fecha':     r['Marca temporal'].strftime("%d/%m/%Y"),
+            'fecha':     r['Marca temporal'].strftime("%d/%m/%Y") if pd.notna(r['Marca temporal']) else "",
             'area':      str(r.get(col_area_real, '')),
             'propuesta': str(r.get(COL_PROPUESTA, ''))
         } for _, r in df_k_curr.iterrows()]
 
-    # Incidencias por NO participar en Kaizen
     df_admin = pd.DataFrame([{
         "FECHA": f"{anio_num}-{mes_num:02d}-28",
         "EMPLEADO": e,
@@ -1019,7 +1281,6 @@ def procesar_super_nomina(df_bio, df_bitacora, df_kaizen, mes_num, anio_num):
         "OBSERVACION": "No presento propuesta de mejora Kaizen"
     } for e in nopart])
 
-    # 3. Bitácora Manual
     df_bit = pd.DataFrame(columns=["FECHA", "EMPLEADO", "INCIDENCIA", "OBSERVACION"])
     if not df_bitacora.empty:
         df_bitacora_copy = df_bitacora.copy()
@@ -1031,10 +1292,8 @@ def procesar_super_nomina(df_bio, df_bitacora, df_kaizen, mes_num, anio_num):
         if not df_bit.empty:
             df_bit['FECHA'] = df_bit['FECHA'].dt.strftime('%Y-%m-%d')
 
-    # 4. Consolidar
     df_todas = pd.concat([df_ret, df_bit, df_admin], ignore_index=True)
 
-    # 5. Calcular Nómina Final
     nomina = []
     for emp in sorted(list(set(EMPLEADOS_DB.values()))):
         df_e   = df_todas[df_todas['EMPLEADO'] == emp]
@@ -1063,14 +1322,27 @@ def procesar_super_nomina(df_bio, df_bitacora, df_kaizen, mes_num, anio_num):
     return pd.DataFrame(nomina), df_todas, df_ret, stats_k, props, df_bio
 
 # ==========================================
-# 5. APLICACIÓN PRINCIPAL (ENRUTADOR)
+# 5. APLICACIÓN PRINCIPAL (ENRUTADOR ENTERPRISE)
 # ==========================================
 def main():
     with st.sidebar:
-        st.markdown("### NAVEGADOR EMPRESARIAL")
-        modulo_activo = st.radio("Seleccione el Módulo:", ["Dashboard de Operaciones", "Gestión de Nómina", "Turno Nocturno"], label_visibility="collapsed")
-        st.divider()
-        st.markdown("### FILTROS")
+        st.markdown("<h2 style='text-align:center; color:#1E293B; margin-bottom: 2rem;'>SUNHAVEN<br><span style='font-size: 1rem; font-weight:400; color:#64748B;'>Operations Platform</span></h2>", unsafe_allow_html=True)
+        
+        modulo_activo = option_menu(
+            menu_title=None,
+            options=["Dashboard de Operaciones", "Gestión de Nómina", "Turno Nocturno"],
+            icons=["clipboard-data", "wallet2", "moon-stars"],
+            menu_icon="cast", default_index=0,
+            styles={
+                "container": {"padding": "0!important", "background-color": "transparent"},
+                "icon": {"color": "#D35400", "font-size": "1.2rem"},
+                "nav-link": {"font-size": "0.95rem", "text-align": "left", "margin":"0px", "font-family": "Inter", "color": "#475569", "font-weight": "600", "border-radius": "8px"},
+                "nav-link-selected": {"background-color": "#ffffff", "color": "#0F172A", "box-shadow": "0 1px 3px rgba(0,0,0,0.1)"},
+            }
+        )
+        
+        st.markdown("<hr style='margin: 1.5rem 0; border-color: #E2E8F0;'>", unsafe_allow_html=True)
+        st.markdown("<p style='font-size: 0.8rem; font-weight: 700; color: #94A3B8; text-transform: uppercase;'>Filtros Globales</p>", unsafe_allow_html=True)
         
         fecha_inicio, fecha_fin, mes_eval, anio_eval, file_asis = None, None, None, None, None
         agrupacion_temporal = "Día"
@@ -1086,10 +1358,10 @@ def main():
         else:
             mes_eval = st.selectbox("Mes", range(1, 13), index=datetime.now().month-1)
             anio_eval = st.number_input("Año", min_value=2020, max_value=2050, value=datetime.now().year)
-            file_asis = st.file_uploader("Archivo Biométrico (.xlsx)", type=['xlsx', 'csv'])
+            file_asis = st.file_uploader("Archivo Biométrico (.xlsx, .csv)", type=['xlsx', 'csv'])
             
-        st.divider()
-        if st.button("Sincronizar Datos DB", use_container_width=True):
+        st.markdown("<hr style='margin: 1.5rem 0; border-color: #E2E8F0;'>", unsafe_allow_html=True)
+        if st.button("🔄 Sincronizar Datos DB", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
 
@@ -1097,7 +1369,7 @@ def main():
     # MÓDULO 1: DASHBOARD OPERATIVO
     # ---------------------------------------------------------
     if modulo_activo == "Dashboard de Operaciones":
-        st.title("Dashboard de Operaciones")
+        st.title("Monitoreo e Inteligencia Operativa")
         data = cargar_datos_operaciones()
         if data is None: st.stop()
         df_ron, df_rop, df_serv = data["n"].copy(), data["v"].copy(), data["s"].copy()
@@ -1119,9 +1391,6 @@ def main():
             c_uni, c_bas = find_col(df_serv, ["uniforme"]), find_col(df_serv, ["basura"])
             c_lav_r, c_lav_j = find_col(df_serv, ["ropa", "separad"]), find_col(df_serv, ["jabón", "jabon"])
             c_lim = find_col(df_serv, ["zonas asignadas", "limpieza"])
-
-            if not all([c_5s, c_cam, col_enf, c_uni, c_bas, c_lav_r, c_lav_j, c_lim]):
-                raise ValueError("Faltan columnas críticas en los Google Sheets.")
 
             for df in [df_ron, df_rop, df_serv]:
                 df['Marca temporal'] = pd.to_datetime(df['Marca temporal'], dayfirst=True, errors='coerce')
@@ -1191,89 +1460,64 @@ def main():
 
         html_dictamen, pdf_dictamen = generar_dictamen_operativo(ico, df_a, df_c)
 
-        st.markdown(f"""<div class='exec-header'>
-            <div><p style='margin:0; font-weight:700; color:#64748b; font-size:12px; text-transform:uppercase;'>Estatus Institucional</p>
-            <h2 style='margin:0; color:{HEX_GREEN if ico >= 90 else HEX_RED};'>{"ESTABLE" if ico >= 90 else "ATENCIÓN REQUERIDA"}</h2></div>
-            <div style='text-align:right;'><p style='margin:0; font-weight:700; color:#64748b; font-size:12px; text-transform:uppercase;'>ICO Maestro</p>
-            <h1 style='margin:0; font-size:48px;'>{ico:.1f}%</h1></div></div>""", unsafe_allow_html=True)
+        # Enterprise Layout
+        top_col1, top_col2 = st.columns([3, 1])
+        with top_col1:
+            st.markdown(f"<div class='dictamen-box'><h4 class='dictamen-title'>Insights Ejecutivos</h4><p class='dictamen-text'>{html_dictamen}</p></div>", unsafe_allow_html=True)
+            if kpi:
+                kpi_cols = st.columns(len(kpi))
+                for i, (a, v) in enumerate(kpi.items()):
+                    with kpi_cols[i]: render_kpi_card(a, v)
+        with top_col2:
+            fig_gauge = go.Figure(go.Indicator(mode="gauge+number", value=ico, number={'suffix': "%", 'font': {'size': 36, 'color': '#0F172A', 'family': 'Inter'}}, title={'text': "ICO MAESTRO", 'font': {'size': 14, 'color': '#64748B', 'family': 'Inter'}}, gauge={'axis': {'range': [None, 100], 'tickwidth': 1, 'tickcolor': "#CBD5E1"}, 'bar': {'color': HEX_GREEN if ico>=90 else HEX_RED}, 'bgcolor': "white", 'borderwidth': 0, 'steps': [{'range': [0, 90], 'color': '#FEE2E2'}, {'range': [90, 100], 'color': '#D1FAE5'}]}))
+            fig_gauge.update_layout(margin=dict(l=10, r=10, t=30, b=10), height=230, paper_bgcolor='rgba(0,0,0,0)', font_family="Inter")
+            st.markdown("<div class='premium-card' style='height: 90%; display:flex; align-items:center;'>", unsafe_allow_html=True)
+            st.plotly_chart(fig_gauge, use_container_width=True, config={'displayModeBar': False})
+            st.markdown("</div>", unsafe_allow_html=True)
 
-        st.markdown(f"""<div class='dictamen-box'>
-                <h4 class='dictamen-title'>Dictamen y Recomendaciones Ejecutivas</h4>
-                <p class='dictamen-text'>{html_dictamen}</p></div>""", unsafe_allow_html=True)
-
-        tabs_op = st.tabs(["Tablero de Control", "Evolución Temporal", "Rendimiento Individual", "Blindaje Legal", "Data Cruda"])
+        tabs_op = st.tabs(["📊 Tablero Analítico", "📈 Tendencias Base", "👤 Evaluación RRHH", "⚖️ Auditoría Legal", "🗄️ Raw Data"])
         
         with tabs_op[0]:
-            if st.button("Generar Reporte de Operaciones (PDF)", type="primary"):
+            if st.button("📄 Exportar Reporte Ejecutivo (PDF)", type="primary"):
                 pdf_b = generar_pdf_dashboard_op(ico, "ESTABLE" if ico >= 90 else "ATENCIÓN REQUERIDA", df_a, df_c, df_plot, agrupacion_temporal, f"{fecha_inicio.strftime('%d/%m/%Y')} al {fecha_fin.strftime('%d/%m/%Y')}", pdf_dictamen)
-                st.download_button("Descargar Archivo", data=pdf_b, file_name="Reporte_Operaciones.pdf", mime="application/pdf")
+                st.download_button("Descargar Documento Operaciones", data=pdf_b, file_name="Reporte_Operaciones.pdf", mime="application/pdf")
             
-            if kpi:
-                cols = st.columns(5)
-                for i, (a, v) in enumerate(kpi.items()):
-                    color, flecha = (HEX_GREEN, '↑') if v >= 90 else (HEX_RED, '↓')
-                    with cols[i]: st.markdown(f"<div class='kpi-card'><p class='metric-label'>{a}</p><p class='metric-value' style='color:{color};'>{v:.1f}% {flecha}</p></div>", unsafe_allow_html=True)
-            
-            st.divider()
             c1, c2 = st.columns(2)
             with c1:
-                st.write("### Pareto por Área")
+                st.markdown("<div class='premium-card'><h3 class='section-title'>Análisis de Pareto Operativo</h3>", unsafe_allow_html=True)
                 if not df_a.empty:
                     fig = px.bar(df_a, x='index', y='V', text_auto='.1f', color_discrete_sequence=[HEX_NAVY])
-                    fig.add_hline(y=90, line_dash="dash", line_color="red")
-                    st.plotly_chart(fig, use_container_width=True)
+                    fig.add_hline(y=90, line_dash="dash", line_color=HEX_RED, annotation_text="Meta 90%")
+                    st.plotly_chart(apply_plotly_theme(fig), use_container_width=True, config={'displayModeBar': False})
+                st.markdown("</div>", unsafe_allow_html=True)
             with c2:
-                st.write("### Análisis de Causa Raíz")
+                st.markdown("<div class='premium-card'><h3 class='section-title'>Análisis de Causa Raíz (Ishikawa)</h3>", unsafe_allow_html=True)
                 if not df_c.empty:
-                    fig_c = px.bar(df_c, x='V', y='index', orientation='h', text_auto='.1f', color_discrete_sequence=[HEX_RED])
-                    fig_c.add_vline(x=90, line_dash="dash", line_color="black")
-                    st.plotly_chart(fig_c, use_container_width=True)
+                    fig_c = px.bar(df_c, x='V', y='index', orientation='h', text_auto='.1f', color_discrete_sequence=[HEX_SUN])
+                    fig_c.add_vline(x=90, line_dash="dash", line_color=HEX_NAVY)
+                    st.plotly_chart(apply_plotly_theme(fig_c), use_container_width=True, config={'displayModeBar': False})
+                st.markdown("</div>", unsafe_allow_html=True)
 
         with tabs_op[1]:
-            st.write(f"### Evolución Histórica de Todos los Departamentos ({agrupacion_temporal})")
+            st.markdown("<div class='premium-card'><h3 class='section-title'>Tendencias Históricas</h3>", unsafe_allow_html=True)
             if not df_plot.empty:
                 fig_evol = px.line(df_plot, labels={"value": "Cumplimiento (%)", "index": "Periodo", "variable": "Área Operativa"}, markers=True)
-                fig_evol.add_hline(y=90, line_dash="dot", line_color="red", annotation_text="Línea Base 90%")
-                st.plotly_chart(fig_evol, use_container_width=True)
+                fig_evol.update_traces(line_shape='spline')
+                fig_evol.add_hline(y=90, line_dash="dot", line_color=HEX_RED, annotation_text="Línea Base 90%")
+                st.plotly_chart(apply_plotly_theme(fig_evol), use_container_width=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
         with tabs_op[2]:
-            st.write("### Rendimiento Detallado por Personal")
-            if not df_ranking.empty: st.dataframe(df_ranking, use_container_width=True)
+            st.markdown("<div class='premium-card'><h3 class='section-title'>Rendimiento Individual Consolidado</h3>", unsafe_allow_html=True)
+            if not df_ranking.empty: st.dataframe(df_ranking, use_container_width=True, hide_index=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
         with tabs_op[3]:
-            st.write("### Auditoría y Blindaje Institucional")
             cats = {
-                "REGULACIÓN SANITARIA Y OPERATIVA - COPRISJAL/SSA": [
-                    "[CRÍTICO - Anual] Aviso de Funcionamiento: Verificar documento vigente y exhibido.",
-                    "[CRÍTICO - Anual] Responsable Sanitario: Validar aviso y nombramiento registrado.",
-                    "[CRÍTICO - Diario] Medicamentos controlados: Verificar resguardo y control foliado.",
-                    "[ALTO - Mensual] Accesibilidad NOM-031: Verificar rampas y barandales.",
-                    "[CRÍTICO - Mensual] Expedientes clínicos: Validar integración y resguardo.",
-                    "[CRÍTICO - Semanal] Manejo RPBI: Verificar contenedores y bolsas.",
-                    "[ALTO - Diario] Higiene alimentaria: Control de temperaturas y limpieza en cocina."
-                ],
-                "SEGURIDAD Y SALUD LABORAL - STPS": [
-                    "[ALTO - Anual] RIT: Verificar Reglamento Interior de Trabajo firmado.",
-                    "[ALTO - Anual] NOM-035: Aplicar guía preventiva de riesgos psicosociales.",
-                    "[ALTO - Trimestral] Comisión Mixta: Validar actas y recorridos de seguridad.",
-                    "[ALTO - Semestral] Ergonomía (Movilización pacientes): Verificar capacitación y DC-3."
-                ],
-                "PROTECCIÓN CIVIL Y ECOLOGÍA MUNICIPAL": [
-                    "[CRÍTICO - Anual] Programa Interno PIPC: Validar autorización vigente.",
-                    "[CRÍTICO - Anual] Responsabilidad Civil: Verificar póliza de seguro vigente.",
-                    "[CRÍTICO - Anual] Dictamen estructural: Validar dictamen DRO.",
-                    "[CRÍTICO - Mensual] Extintores: Revisar vigencia, señalización y recarga.",
-                    "[CRÍTICO - Mensual] Detectores de humo: Validar funcionamiento.",
-                    "[ALTO - Mensual] Evacuación: Verificar rutas, luces y señalética.",
-                    "[ALTO - Anual] Brigadas: Validar constancias de capacitación (DC-3).",
-                    "[CRÍTICO - Semestral] Simulacros: Revisar bitácoras y formatos de evacuación."
-                ],
-                "CUMPLIMIENTO LEGAL Y PRIVACIDAD": [
-                    "[ALTO - Permanente] Aviso de privacidad INAI: Verificar exhibición y anexos.",
-                    "[CRÍTICO - Permanente] Datos sensibles: Confirmar consentimientos en expedientes.",
-                    "[ALTO - Permanente] Contratos de servicios: Verificar contratos firmados y vigentes.",
-                    "[ALTO - Anual] Contrato adhesión PROFECO: Confirmar registro vigente."
-                ]
+                "REGULACIÓN SANITARIA Y OPERATIVA - COPRISJAL/SSA": ["[CRÍTICO - Anual] Aviso de Funcionamiento: Verificar documento vigente y exhibido.", "[CRÍTICO - Anual] Responsable Sanitario: Validar aviso y nombramiento registrado.", "[CRÍTICO - Diario] Medicamentos controlados: Verificar resguardo y control foliado.", "[ALTO - Mensual] Accesibilidad NOM-031: Verificar rampas y barandales.", "[CRÍTICO - Mensual] Expedientes clínicos: Validar integración y resguardo.", "[CRÍTICO - Semanal] Manejo RPBI: Verificar contenedores y bolsas.", "[ALTO - Diario] Higiene alimentaria: Control de temperaturas y limpieza en cocina."],
+                "SEGURIDAD Y SALUD LABORAL - STPS": ["[ALTO - Anual] RIT: Verificar Reglamento Interior de Trabajo firmado.", "[ALTO - Anual] NOM-035: Aplicar guía preventiva de riesgos psicosociales.", "[ALTO - Trimestral] Comisión Mixta: Validar actas y recorridos de seguridad.", "[ALTO - Semestral] Ergonomía (Movilización pacientes): Verificar capacitación y DC-3."],
+                "PROTECCIÓN CIVIL Y ECOLOGÍA MUNICIPAL": ["[CRÍTICO - Anual] Programa Interno PIPC: Validar autorización vigente.", "[CRÍTICO - Anual] Responsabilidad Civil: Verificar póliza de seguro vigente.", "[CRÍTICO - Anual] Dictamen estructural: Validar dictamen DRO.", "[CRÍTICO - Mensual] Extintores: Revisar vigencia, señalización y recarga.", "[CRÍTICO - Mensual] Detectores de humo: Validar funcionamiento.", "[ALTO - Mensual] Evacuación: Verificar rutas, luces y señalética.", "[ALTO - Anual] Brigadas: Validar constancias de capacitación (DC-3).", "[CRÍTICO - Semestral] Simulacros: Revisar bitácoras y formatos de evacuación."],
+                "CUMPLIMIENTO LEGAL Y PRIVACIDAD": ["[ALTO - Permanente] Aviso de privacidad INAI: Verificar exhibición y anexos.", "[CRÍTICO - Permanente] Datos sensibles: Confirmar consentimientos en expedientes.", "[ALTO - Permanente] Contratos de servicios: Verificar contratos firmados y vigentes.", "[ALTO - Anual] Contrato adhesión PROFECO: Confirmar registro vigente."]
             }
             if 'checks' not in st.session_state: st.session_state.checks = {i: False for sub in cats.values() for i in sub}
             c_l1, c_l2 = st.columns([0.7, 0.3])
@@ -1283,13 +1527,14 @@ def main():
                         for item in items: st.session_state.checks[item] = st.checkbox(item, value=st.session_state.checks[item], key=item)
             pct = (sum(st.session_state.checks.values()) / len(st.session_state.checks)) * 100
             with c_l2:
-                st.write(f"#### Índice: {int(pct)}%")
+                st.markdown(f"<div class='premium-card'><h3 class='section-title'>Índice de Protección: {int(pct)}%</h3>", unsafe_allow_html=True)
                 st.progress(pct / 100)
-                if st.button("Generar Reporte Legal"): st.session_state['pl'] = generar_pdf_legal_bytes(cats, st.session_state.checks, pct)
+                if st.button("Generar Reporte Legal", type="primary"): st.session_state['pl'] = generar_pdf_legal_bytes(cats, st.session_state.checks, pct)
                 if 'pl' in st.session_state: st.download_button("Descargar Auditoría PDF", data=st.session_state['pl'], file_name=f"Legal_{datetime.now().strftime('%d%m%Y')}.pdf", mime="application/pdf")
+                st.markdown("</div>", unsafe_allow_html=True)
 
         with tabs_op[4]:
-            st.write("### Tuberías de Datos Operativas (Data Cruda)")
+            st.info("Visualización de tuberías de ingesta bruta conectadas a Google Sheets.")
             sub1, sub2, sub3 = st.tabs(["Servicios Generales", "Enfermería Vespertina", "Rondines Nocturnos"])
             with sub1: st.dataframe(df_serv, use_container_width=True)
             with sub2: st.dataframe(df_rop, use_container_width=True)
@@ -1301,10 +1546,10 @@ def main():
     elif modulo_activo == "Gestión de Nómina":
         st.title("Gestión de Nómina y Mejora Continua")
         df_bitacora = cargar_bitacora()
-        tabs_nom = st.tabs(["Dictamen de Nómina", "Bitácora Digital", "Data Cruda"])
+        tabs_nom = st.tabs(["Ejecución Financiera", "Bitácora Digital", "Data Cruda"])
 
         with tabs_nom[1]:
-            st.write("### Registro Manual de Supervisión")
+            st.markdown("<div class='premium-card'><h3 class='section-title'>Nueva Incidencia Operativa</h3>", unsafe_allow_html=True)
             with st.form("form_incidencia"):
                 c_f1, c_f2, c_f3 = st.columns(3)
                 with c_f1: f_fecha = st.date_input("Fecha")
@@ -1314,41 +1559,72 @@ def main():
                 if st.form_submit_button("Guardar en Bitácora"):
                     guardar_incidencia(f_fecha.strftime('%Y-%m-%d'), f_emp, f_inc, f_obs)
                     st.rerun()
+            st.markdown("</div><div class='premium-card'><h3 class='section-title'>Historial de Bitácora Digital</h3>", unsafe_allow_html=True)
             st.dataframe(df_bitacora, use_container_width=True)
             if not df_bitacora.empty:
-                b_idx = st.number_input("ID a borrar", 0, len(df_bitacora)-1, 0)
-                if st.button("Eliminar"): borrar_incidencia(b_idx); st.rerun()
+                col_b1, col_b2 = st.columns([1,4])
+                with col_b1:
+                    b_idx = st.number_input("ID a borrar", 0, len(df_bitacora)-1, 0)
+                    if st.button("Eliminar Registro Permanentemente"): borrar_incidencia(b_idx); st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
 
         with tabs_nom[0]:
             if file_asis:
-                if st.button("Procesar Nómina vs Kaizen", type="primary"):
+                if st.button("🚀 Ejecutar Algoritmo de Nómina y Bonos", type="primary"):
                     with st.spinner("Procesando..."):
                         st.session_state['nom'] = procesar_super_nomina(limpiar_biometrico(file_asis.read()), df_bitacora, fetch_kaizen_data(), mes_eval, anio_eval)
             
             if 'nom' in st.session_state:
                 df_n, df_i, df_r, s_k, p_k, df_bio_nom = st.session_state['nom']
                 m_str = f"{mes_eval:02d}/{anio_eval}"
-                st.markdown(f"<h1 style='color:{HEX_GREEN};'>Total a Dispersar: ${df_n['TOTAL A PAGAR'].sum():,}</h1>", unsafe_allow_html=True)
-
                 html_dictamen, pdf_dictamen = generar_dictamen_nomina(s_k, df_r)
 
-                st.markdown(f"""<div class='dictamen-box'>
-                        <h4 class='dictamen-title'>Dictamen y Recomendaciones Ejecutivas</h4>
-                        <p class='dictamen-text'>{html_dictamen}</p></div>""", unsafe_allow_html=True)
+                st.markdown(f"""
+                <div class='premium-card' style='background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); color: white; border:none;'>
+                    <div style='display: flex; justify-content: space-between; align-items: center;'>
+                        <div style='width: 65%;'>
+                            <p style='color:#94A3B8; font-size:12px; font-weight:800; text-transform:uppercase; margin:0;'>Insights Analíticos de Recursos Humanos</p>
+                            <div style='margin-top: 8px; font-size: 0.95rem; line-height: 1.5; color: #E2E8F0;'>{html_dictamen}</div>
+                        </div>
+                        <div style='text-align: right;'>
+                            <p style='color:#94A3B8; font-size:12px; font-weight:800; text-transform:uppercase; margin:0;'>Gran Total a Dispersar</p>
+                            <h1 style='color:#10B981; font-size:48px; margin:0;'>${df_n['TOTAL A PAGAR'].sum():,}</h1>
+                        </div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
 
-                pdf_b = generar_pdf_nomina(df_n, df_i, df_r, s_k, p_k, df_bio_nom, mes_eval, anio_eval, m_str, pdf_dictamen)
-                st.download_button("Descargar Reporte de Nómina (PDF)", data=pdf_b, file_name=f"Nomina_{m_str.replace('/','_')}.pdf", mime="application/pdf")
+                if st.button("📄 Exportar Reporte de Nómina Oficial (PDF Unificado)"):
+                    pdf_b = generar_pdf_nomina(df_n, df_i, df_r, s_k, p_k, df_bio_nom, mes_eval, anio_eval, m_str, pdf_dictamen)
+                    st.download_button("Descargar Nómina Oficial", data=pdf_b, file_name=f"Nomina_{m_str.replace('/','_')}.pdf", mime="application/pdf")
                 
-                st.write("#### 1. Resumen General de Pagos por Rubro")
-                st.dataframe(df_n, use_container_width=True, hide_index=True)
-                
-                st.divider()
-                st.write("#### 2. Desglose Histórico e Individual de Incidencias")
+                c_nom1, c_nom2 = st.columns([1.5, 1])
+                with c_nom1:
+                    st.markdown("<div class='premium-card'><h3 class='section-title'>Matriz de Dispersión Financiera</h3>", unsafe_allow_html=True)
+                    st.dataframe(df_n, use_container_width=True, hide_index=True)
+                    st.markdown("</div>", unsafe_allow_html=True)
+                with c_nom2:
+                    st.markdown("<div class='premium-card'><h3 class='section-title'>Métricas Clave</h3>", unsafe_allow_html=True)
+                    fig_k = go.Figure(data=[go.Pie(labels=['Entregaron', 'Omitieron'], values=[s_k['curr_si'], s_k['curr_no']], hole=.5, marker_colors=[HEX_NAVY, HEX_SUN])])
+                    fig_k.update_layout(title_text="Adopción Kaizen (Mes Actual)", showlegend=True, margin=dict(t=30, b=10, l=10, r=10), height=250)
+                    st.plotly_chart(fig_k, use_container_width=True, config={'displayModeBar': False})
+                    
+                    if not df_r.empty:
+                        st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
+                        ret_counts = df_r['EMPLEADO'].value_counts().head(5).reset_index()
+                        ret_counts.columns = ['Empleado', 'Retardos']
+                        fig_r = px.bar(ret_counts, y='Empleado', x='Retardos', orientation='h', color_discrete_sequence=[HEX_RED], title="Top 5 Reincidentes (Biométrico)")
+                        fig_r.update_layout(yaxis={'categoryorder':'total ascending'}, margin=dict(t=30, b=10, l=10, r=10), height=250)
+                        st.plotly_chart(fig_r, use_container_width=True, config={'displayModeBar': False})
+                    st.markdown("</div>", unsafe_allow_html=True)
+
+                st.markdown("<div class='premium-card'><h3 class='section-title'>Desglose Histórico e Individual de Incidencias</h3>", unsafe_allow_html=True)
                 for emp in sorted(df_n['COLABORADOR'].unique()):
                     df_emp_inc = df_i[df_i['EMPLEADO'] == emp]
                     if not df_emp_inc.empty:
-                        with st.expander(f"Ver incidencias de: {emp}"):
+                        with st.expander(f"Expediente de: {emp}"):
                             st.dataframe(df_emp_inc[['FECHA', 'INCIDENCIA', 'OBSERVACION']], use_container_width=True, hide_index=True)
+                st.markdown("</div>", unsafe_allow_html=True)
 
         with tabs_nom[2]:
             if 'nom' in st.session_state:
@@ -1360,7 +1636,7 @@ def main():
     # MÓDULO 3: TURNO NOCTURNO
     # ---------------------------------------------------------
     elif modulo_activo == "Turno Nocturno":
-        st.title("Evaluación de Turno Nocturno")
+        st.title("Auditoría de Turno Nocturno")
         data = cargar_datos_operaciones()
         if data is None: st.stop()
         
@@ -1392,26 +1668,41 @@ def main():
         df_resumen = pd.DataFrame(datos_noc)
         v_noc = df_resumen['% Cumplimiento'].mean() if not df_resumen.empty else 0
 
-        st.markdown(f"""<div class='exec-header'>
-            <div><p style='margin:0; font-weight:700; color:#64748b; font-size:12px; text-transform:uppercase;'>Cumplimiento de Seguridad</p>
-            <h2 style='margin:0; color:{HEX_GREEN if v_noc >= 90 else HEX_RED};'>{"ESTABLE" if v_noc >= 90 else "ALERTA"}</h2></div>
-            <div style='text-align:right;'><p style='margin:0; font-weight:700; color:#64748b; font-size:12px; text-transform:uppercase;'>Promedio Global Nocturno</p>
-            <h1 style='margin:0; font-size:48px;'>{v_noc:.1f}%</h1></div></div>""", unsafe_allow_html=True)
-
         html_dictamen, pdf_dictamen = generar_dictamen_rondines(alertas, df_resumen)
-        st.markdown(f"""<div class='dictamen-box'>
-                <h4 class='dictamen-title'>Dictamen y Recomendaciones Ejecutivas</h4>
-                <p class='dictamen-text'>{html_dictamen}</p></div>""", unsafe_allow_html=True)
+        
+        t_col1, t_col2, t_col3 = st.columns([2,1,1])
+        with t_col1: st.markdown(f"<div class='dictamen-box' style='border-left-color:{HEX_RED if alertas>0 else HEX_GREEN};'><h4 class='dictamen-title' style='color:{HEX_RED if alertas>0 else HEX_GREEN};'>Auditoría de Integridad</h4><p class='dictamen-text'>{html_dictamen}</p></div>", unsafe_allow_html=True)
+        with t_col2: render_kpi_card("Cobertura Global", v_noc)
+        with t_col3: render_kpi_card("Alertas de Fraude", alertas, threshold=0.1, suffix="") 
 
-        tabs_noc = st.tabs(["Auditoría de Rondas", "Log Antifraude"])
+        tabs_noc = st.tabs(["🛡️ Control de Rondas e Integridad", "🕵️ Log Forense (Trazabilidad)"])
         with tabs_noc[0]:
-            if st.button("Generar Reporte Rondines (PDF)", type="primary"):
-                pdf_b = generar_pdf_rondines(df_resumen, escaneos, alertas, f"{fecha_inicio.strftime('%d/%m/%Y')} al {fecha_fin.strftime('%d/%m/%Y')}", pdf_dictamen)
-                st.download_button("Descargar Archivo", data=pdf_b, file_name="Reporte_Rondines.pdf", mime="application/pdf")
-            st.dataframe(df_resumen, use_container_width=True, hide_index=True)
+            if st.button("📄 Exportar Reporte de Rondines (PDF)", type="primary"):
+                pdf_b = generar_pdf_rondines(df_resumen, df_ron_sort, escaneos, alertas, f"{fecha_inicio.strftime('%d/%m/%Y')} al {fecha_fin.strftime('%d/%m/%Y')}", pdf_dictamen)
+                st.download_button("Descargar Archivo Oficial", data=pdf_b, file_name="Reporte_Rondines.pdf", mime="application/pdf")
+            
+            c_r1, c_r2 = st.columns([1, 1.5])
+            with c_r1:
+                st.markdown("<div class='premium-card'><h3 class='section-title'>Matriz de Cumplimiento</h3>", unsafe_allow_html=True)
+                st.dataframe(df_resumen, use_container_width=True, hide_index=True)
+                st.markdown("</div>", unsafe_allow_html=True)
+            with c_r2:
+                st.markdown("<div class='premium-card'><h3 class='section-title'>Análisis de Puntos Ciegos (Heatmap)</h3>", unsafe_allow_html=True)
+                if not df_ron.empty:
+                    _col_r = next((c for c in ['Residente Visitado','Nombre del Residente','Residente','Paciente'] if c in df_ron.columns), None)
+                    if _col_r and 'Bloque' in df_ron.columns:
+                        heat_data = df_ron[df_ron['Bloque'].notnull()].pivot_table(index=_col_r, columns='Bloque', aggfunc='size', fill_value=0)
+                        fig_heat = px.imshow(heat_data, color_continuous_scale='RdYlGn', text_auto=True)
+                        fig_heat.update_layout(coloraxis_showscale=False, margin=dict(l=0, r=0, t=10, b=0))
+                        st.plotly_chart(apply_plotly_theme(fig_heat), use_container_width=True, config={'displayModeBar': False})
+                    else:
+                        st.info('El heatmap requiere la columna Residente Visitado en los datos.')
+                st.markdown("</div>", unsafe_allow_html=True)
+
         with tabs_noc[1]:
-            st.write(f"**Escaneos Totales:** {escaneos} | **Alertas Fraude (<60s):** {alertas}")
-            st.dataframe(df_ron_sort[['Marca temporal', 'Enfermera', 'Diff']].sort_values(by="Marca temporal", ascending=False), use_container_width=True)
+            st.markdown("<div class='premium-card'><h3 class='section-title'>Trazabilidad en Tiempo Real</h3>", unsafe_allow_html=True)
+            st.dataframe(df_ron_sort[['Marca temporal', 'Enfermera', 'Diff']].sort_values(by="Marca temporal", ascending=False), use_container_width=True, hide_index=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
