@@ -348,307 +348,371 @@ def generar_pdf_dashboard_op(ico, estatus, df_a, df_c, df_evol, agrupacion, fech
     shutil.rmtree(temp_dir, ignore_errors=True)
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
-def generar_pdf_nomina(df_nomina, df_incidencias, df_retardos, stats_kaizen, propuestas, mes_str, pdf_dictamen):
+def generar_pdf_nomina(df_nomina, df_incidencias, df_retardos, stats_kaizen, propuestas,
+                       df_bio, mes_num, anio_num, mes_str, pdf_dictamen):
     temp_dir = os.path.join(os.path.dirname(__file__), f'temp_img_{uuid.uuid4().hex}')
     os.makedirs(temp_dir, exist_ok=True)
 
-    # --- GRÁFICA 1: PARETO DE INCIDENCIAS (grande, centrada) ---
-    plt.figure(figsize=(14, 6))
+    # ================================================================
+    # FIGURA 1: Pareto + Ranking lado a lado (figura combinada)
+    # ================================================================
+    fig1, (ax_par, ax_ret) = plt.subplots(1, 2, figsize=(14, 5))
+
     inc_counts = df_incidencias['INCIDENCIA'].value_counts()
     if not inc_counts.empty:
-        bars = plt.bar(inc_counts.index, inc_counts.values, color=HEX_NAVY, edgecolor='white', linewidth=0.8)
-        for bar, val in zip(bars, inc_counts.values):
-            plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.1, str(val),
-                     ha='center', va='bottom', fontsize=11, fontweight='bold', color=HEX_NAVY)
-        plt.title('Tipos de Incidencias Registradas en el Periodo', fontsize=14, fontweight='bold', pad=15)
-        plt.ylabel('Número de ocurrencias', fontsize=11)
-        plt.xticks(rotation=20, ha='right', fontsize=10)
-        plt.grid(axis='y', alpha=0.3)
-    plt.tight_layout()
-    p_pareto = os.path.join(temp_dir, 'pareto_nom.png')
-    plt.savefig(p_pareto, dpi=150)
-    plt.close()
+        bar_colors_p = ['#dc2626' if ('Kaizen' in i or 'Admin' in i) else '#1e293b' for i in inc_counts.index]
+        bars = ax_par.bar(range(len(inc_counts)), inc_counts.values, color=bar_colors_p)
+        ax_par.set_xticks(range(len(inc_counts)))
+        ax_par.set_xticklabels([t[:22] for t in inc_counts.index], rotation=25, ha='right', fontsize=8)
+        for b, v in zip(bars, inc_counts.values):
+            ax_par.text(b.get_x() + b.get_width()/2, b.get_height() + 0.05, str(v), ha='center', fontsize=8)
+    ax_par.set_title('Pareto de Incidencias del Periodo', fontsize=11, fontweight='bold')
+    ax_par.set_ylabel('Cantidad')
 
-    # --- GRÁFICA 2: RANKING DE RETARDOS (grande, centrada) ---
-    plt.figure(figsize=(14, 6))
-    ret_counts = df_retardos['EMPLEADO'].value_counts().head(10)
+    ret_counts = df_retardos['EMPLEADO'].value_counts().head(12)
     if not ret_counts.empty:
-        colors_ret = [HEX_RED if v >= 4 else '#f97316' if v == 3 else HEX_NAVY for v in ret_counts.values]
-        bars = plt.barh(ret_counts.index, ret_counts.values, color=colors_ret, edgecolor='white')
-        for bar, val in zip(bars, ret_counts.values):
-            plt.text(val + 0.05, bar.get_y() + bar.get_height()/2, str(val),
-                     va='center', fontsize=11, fontweight='bold')
-        plt.axvline(x=3, color='#f97316', linestyle='--', linewidth=2, label='Límite tolerancia (3)')
-        plt.axvline(x=4, color=HEX_RED, linestyle='--', linewidth=2, label='Pierde bono (4+)')
-        plt.title('Ranking de Retardos por Colaborador', fontsize=14, fontweight='bold', pad=15)
-        plt.xlabel('Número de retardos en el mes', fontsize=11)
-        plt.legend(fontsize=10)
-        plt.gca().invert_yaxis()
-        plt.grid(axis='x', alpha=0.3)
+        bar_cols_r = ['#dc2626' if c >= 4 else '#d97706' if c == 3 else '#1e293b' for c in ret_counts.values]
+        names_short = [n.split()[0] + ' ' + n.split()[-1] if len(n.split()) > 1 else n for n in ret_counts.index]
+        y_pos = range(len(ret_counts))
+        ax_ret.barh(list(y_pos), list(ret_counts.values), color=bar_cols_r)
+        ax_ret.set_yticks(list(y_pos))
+        ax_ret.set_yticklabels(names_short, fontsize=8)
+        ax_ret.axvline(x=4, color='red', linestyle='--', linewidth=1.2, label='Pierde bono (>=4)')
+        ax_ret.axvline(x=3, color='orange', linestyle='--', linewidth=1.2, label='En riesgo (3)')
+        ax_ret.legend(fontsize=8)
+    ax_ret.set_title('Ranking de Retardos por Colaborador', fontsize=11, fontweight='bold')
+    ax_ret.set_xlabel('Retardos')
+
     plt.tight_layout()
-    p_ret = os.path.join(temp_dir, 'ret_nom.png')
-    plt.savefig(p_ret, dpi=150)
+    p_chart1 = os.path.join(temp_dir, 'chart1_nom.png')
+    plt.savefig(p_chart1, dpi=150, bbox_inches='tight')
     plt.close()
 
-    # --- GRÁFICA 3: DONUTS KAIZEN (grande) ---
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+    # ================================================================
+    # FIGURA 2: Donuts Kaizen (mes anterior vs. mes actual)
+    # ================================================================
+    fig2, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
     colors_kz = [HEX_GREEN, HEX_RED]
-    if (stats_kaizen['prev_si'] + stats_kaizen['prev_no']) > 0:
-        ax1.pie([stats_kaizen['prev_si'], stats_kaizen['prev_no']], labels=['Participaron', 'No participaron'],
-                autopct='%1.1f%%', colors=colors_kz, startangle=90, textprops={'fontsize': 12})
-    ax1.set_title('Mes Anterior', fontsize=13, fontweight='bold')
-    if (stats_kaizen['curr_si'] + stats_kaizen['curr_no']) > 0:
-        ax2.pie([stats_kaizen['curr_si'], stats_kaizen['curr_no']], labels=['Participaron', 'No participaron'],
-                autopct='%1.1f%%', colors=colors_kz, startangle=90, textprops={'fontsize': 12})
-    ax2.set_title('Mes Actual', fontsize=13, fontweight='bold')
-    plt.suptitle('Participación en Mejora Continua (Kaizen)', fontsize=14, fontweight='bold', y=1.02)
+    tot_p = stats_kaizen['prev_si'] + stats_kaizen['prev_no']
+    tot_c = stats_kaizen['curr_si'] + stats_kaizen['curr_no']
+    if tot_p > 0:
+        ax1.pie([stats_kaizen['prev_si'], stats_kaizen['prev_no']],
+                labels=['Participo', 'No participo'], autopct='%1.1f%%',
+                colors=colors_kz, startangle=90, wedgeprops=dict(width=0.55))
+    ax1.set_title('Mes Anterior', fontsize=12, fontweight='bold')
+    if tot_c > 0:
+        ax2.pie([stats_kaizen['curr_si'], stats_kaizen['curr_no']],
+                labels=['Participo', 'No participo'], autopct='%1.1f%%',
+                colors=colors_kz, startangle=90, wedgeprops=dict(width=0.55))
+    ax2.set_title('Mes Actual', fontsize=12, fontweight='bold')
+    fig2.suptitle('Participacion en Programa Kaizen — Mejora Continua',
+                  fontsize=13, fontweight='bold', y=1.02)
     plt.tight_layout()
     p_kz = os.path.join(temp_dir, 'kz_nom.png')
     plt.savefig(p_kz, dpi=150, bbox_inches='tight')
     plt.close()
 
-    # =====================================================================
-    # CONSTRUCCIÓN DEL PDF
-    # =====================================================================
+    # ================================================================
+    # CALCULAR HORAS SEMANALES (Checadores Especiales)
+    # ================================================================
+    horas_semana = {}
+    if not df_bio.empty and 'Salida' in df_bio.columns:
+        DB_UP = {" ".join(k.upper().split()): v for k, v in EMPLEADOS_DB.items()}
+        for ch_up in {" ".join(c.upper().split()) for c in CHECADORES_ESPECIALES}:
+            nombre = DB_UP.get(ch_up, ch_up)
+            df_ch = df_bio[df_bio['Checador'].apply(lambda x: " ".join(str(x).upper().split())) == ch_up]
+            if df_ch.empty:
+                continue
+            semanas = {}
+            for _, r in df_ch.iterrows():
+                try:
+                    fecha_d = datetime(anio_num, mes_num, int(r['Día']))
+                except Exception:
+                    continue
+                iso_w = fecha_d.isocalendar()[1]
+                ent_s = str(r.get('Entrada', ''))
+                sal_s = str(r.get('Salida', ''))
+                if len(ent_s) == 5 and len(sal_s) == 5 and ':' in ent_s and ':' in sal_s:
+                    try:
+                        t_e = datetime.strptime(ent_s, "%H:%M")
+                        t_s = datetime.strptime(sal_s, "%H:%M")
+                        dh  = (t_s - t_e).total_seconds() / 3600
+                        if dh < 0:
+                            dh += 24
+                        semanas[iso_w] = semanas.get(iso_w, 0) + dh
+                    except Exception:
+                        pass
+            if semanas:
+                horas_semana[nombre] = semanas
+
+    # ================================================================
+    # CONSTRUIR PDF
+    # ================================================================
     pdf = SunhavenPDF()
-    pdf.titulo_header = "REPORTE EJECUTIVO DE BONOS E INCIDENCIAS"
-    pdf.cover_page("NÓMINA Y RECURSOS HUMANOS", "Periodo Evaluado", mes_str)
+    pdf.titulo_header = "REPORTE EJECUTIVO — NOMINA Y MEJORA CONTINUA"
+    pdf.cover_page("NOMINA Y RECURSOS HUMANOS", "Bonos, Retardos y Programa Kaizen", mes_str)
 
-    # ----------------------------------------------------------
-    # SECCIÓN 1: PARETO DE INCIDENCIAS — gráfica grande + explicación
-    # ----------------------------------------------------------
+    # ---- SECCION 1: Gráficas de análisis ----
     pdf.add_page()
     pdf.set_font('Helvetica', 'B', 14)
     pdf.set_text_color(*C_NAVY)
-    pdf.cell(0, 8, sanitizar_texto("1. ANÁLISIS DE INCIDENCIAS DEL PERIODO"), 0, 1, 'L')
+    pdf.cell(0, 8, sanitizar_texto("1. ANALISIS DE INCIDENCIAS DEL PERIODO"), 0, 1, 'L')
     pdf.set_draw_color(*C_SUN)
     pdf.line(10, pdf.get_y(), 200, pdf.get_y())
     pdf.ln(3)
     pdf.set_font('Helvetica', '', 10)
     pdf.set_text_color(*C_DARK)
     pdf.multi_cell(0, 5, sanitizar_texto(
-        "La siguiente gráfica muestra la frecuencia de cada tipo de incidencia registrada en la bitácora durante "
-        "el mes. Las barras más altas indican los comportamientos que más se repitieron en el equipo. "
-        "Una incidencia de tipo 'Grave' implica la pérdida automática de todos los bonos para ese colaborador, "
-        "independientemente de su desempeño en otros rubros."
+        "El grafico izquierdo (Pareto) muestra la frecuencia de cada tipo de incidencia en el periodo. "
+        "Las barras ROJAS corresponden a fallas Kaizen — cada una representa $500 perdidos por el colaborador omiso. "
+        "El grafico derecho es el ranking de retardos: barras en NARANJA = exactamente 3 retardos "
+        "(un retardo mas y pierde el Bono de Puntualidad de $500); barras en ROJO = bono ya perdido (>=4 retardos)."
     ), 0, 'J')
     pdf.ln(3)
-    pdf.image(p_pareto, x=10, w=190)
+    pdf.image(p_chart1, x=10, w=190)
     pdf.ln(5)
 
-    # ----------------------------------------------------------
-    # SECCIÓN 2: RANKING DE RETARDOS — gráfica grande + explicación
-    # ----------------------------------------------------------
+    # ---- SECCION 2: Tabla total a pagar ----
     pdf.add_page()
     pdf.set_font('Helvetica', 'B', 14)
     pdf.set_text_color(*C_NAVY)
-    pdf.cell(0, 8, sanitizar_texto("2. RANKING DE RETARDOS BIOMÉTRICOS"), 0, 1, 'L')
+    pdf.cell(0, 8, sanitizar_texto("2. TOTAL A PAGAR POR RUBRO"), 0, 1, 'L')
     pdf.set_draw_color(*C_SUN)
     pdf.line(10, pdf.get_y(), 200, pdf.get_y())
     pdf.ln(3)
     pdf.set_font('Helvetica', '', 10)
     pdf.set_text_color(*C_DARK)
     pdf.multi_cell(0, 5, sanitizar_texto(
-        "Esta gráfica muestra cuántos retardos acumuló cada colaborador durante el mes. "
-        "La política de Sun Haven otorga una tolerancia de hasta 3 retardos: quien tenga 3 o menos "
-        "conserva su Bono de Puntualidad ($500). A partir del cuarto retardo, el bono se pierde. "
-        "Las barras en NARANJA indican colaboradores en riesgo (exactamente 3 retardos). "
-        "Las barras en ROJO indican colaboradores que ya perdieron el bono en este periodo."
+        "Cada colaborador puede ganar hasta $1,500 en bonos: Puntualidad ($500, maximo 3 retardos tolerados), "
+        "Uniforme ($500, sin incidencias de imagen) y Admin/Kaizen ($500, requiere entregar propuesta mensual de mejora). "
+        "Un bono en $0 indica que la falta correspondiente fue comprobada con evidencia biometrica o bitacora."
     ), 0, 'J')
     pdf.ln(3)
-    pdf.image(p_ret, x=10, w=190)
+    total_dispersar = df_nomina['TOTAL A PAGAR'].sum()
+    pdf.set_font('Helvetica', 'B', 12)
+    pdf.set_text_color(*C_SUN)
+    pdf.cell(0, 7, sanitizar_texto(f"Total a Dispersar este Periodo: ${total_dispersar:,}"), 0, 1, 'R')
+    pdf.ln(2)
+    datos_nomina = [
+        [row['COLABORADOR'], str(row['RETARDOS']),
+         f"${row['$ PUNTUAL']}", f"${row['$ UNIFORM']}", f"${row['$ ADMIN']}", f"${row['TOTAL A PAGAR']}"]
+        for _, row in df_nomina.iterrows()
+    ]
+    tabla_centrada(pdf, ["COLABORADOR", "RETARDOS", "PUNTUALIDAD", "UNIFORME", "ADMIN/KAIZEN", "TOTAL"],
+                   datos_nomina, [68, 18, 25, 25, 30, 24])
+
+    # ---- SECCION 3: Justificación de retenciones y advertencias ----
+    pdf.add_page()
+    pdf.set_font('Helvetica', 'B', 14)
+    pdf.set_text_color(*C_NAVY)
+    pdf.cell(0, 8, sanitizar_texto("3. JUSTIFICACION DE RETENCIONES Y ADVERTENCIAS"), 0, 1, 'L')
+    pdf.set_draw_color(*C_SUN)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(3)
+    pdf.set_font('Helvetica', '', 10)
+    pdf.set_text_color(*C_DARK)
+    pdf.multi_cell(0, 5, sanitizar_texto(
+        "Esta seccion documenta, con fechas exactas, la razon por la cual cada colaborador perdio uno o mas bonos. "
+        "Sirve como evidencia documental para sustentar los descuentos aplicados en nomina. "
+        "Solo se muestran colaboradores con al menos una retencion o en situacion de riesgo."
+    ), 0, 'J')
     pdf.ln(5)
 
-    # ----------------------------------------------------------
-    # SECCIÓN 3: RESUMEN EJECUTIVO POR PERSONA (con alertas)
-    # ----------------------------------------------------------
-    pdf.add_page()
-    pdf.set_font('Helvetica', 'B', 14)
-    pdf.set_text_color(*C_NAVY)
-    pdf.cell(0, 8, sanitizar_texto("3. RESUMEN EJECUTIVO POR COLABORADOR"), 0, 1, 'L')
-    pdf.set_draw_color(*C_SUN)
-    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-    pdf.ln(3)
-    pdf.set_font('Helvetica', '', 10)
-    pdf.set_text_color(*C_DARK)
-    pdf.multi_cell(0, 5, sanitizar_texto(
-        "A continuación se presenta el estatus individual de cada colaborador: sus bonos ganados o perdidos, "
-        "sus retardos acumulados y cualquier alerta preventiva. Los iconos de alerta [!] indican situaciones "
-        "que requieren atención antes del cierre del siguiente periodo."
-    ), 0, 'J')
-    pdf.ln(4)
+    for _, emp_row in df_nomina.iterrows():
+        emp   = emp_row['COLABORADOR']
+        total = int(emp_row['TOTAL A PAGAR'])
+        c_ret = int(emp_row['RETARDOS'])
+        bp    = int(emp_row['$ PUNTUAL'])
+        bu    = int(emp_row['$ UNIFORM'])
+        ba    = int(emp_row['$ ADMIN'])
 
-    # Calcular retardos por persona para las alertas
-    ret_por_persona = df_retardos['EMPLEADO'].value_counts().to_dict() if not df_retardos.empty else {}
+        perdio_algo = (total < 1500)
+        en_riesgo   = (c_ret == 3 and bp == 500)
+        if not perdio_algo and not en_riesgo:
+            continue
 
-    for _, row_nom in df_nomina.iterrows():
-        emp       = row_nom['COLABORADOR']
-        total     = row_nom['TOTAL A PAGAR']
-        bp        = row_nom['$ PUNTUAL']
-        bu        = row_nom['$ UNIFORM']
-        ba        = row_nom['$ ADMIN']
-        retardos  = ret_por_persona.get(emp, 0)
-        tiene_grave = not df_incidencias[(df_incidencias['EMPLEADO'] == emp) &
-                                          (df_incidencias['INCIDENCIA'].str.contains('Grave', case=False, na=False))].empty
+        if pdf.get_y() > 245:
+            pdf.add_page()
 
-        # Color del encabezado según estado
-        if tiene_grave:
-            pdf.set_fill_color(220, 50, 50)   # rojo oscuro — falta grave
+        # Cabecera con color según resultado
+        if total == 1500:
+            fill_c = (22, 163, 74)
         elif total == 0:
-            pdf.set_fill_color(200, 50, 50)   # rojo
-        elif total < 1500:
-            pdf.set_fill_color(*C_SUN)        # naranja — perdió algo
+            fill_c = (220, 38, 38)
         else:
-            pdf.set_fill_color(22, 163, 74)   # verde — completo
+            fill_c = (211, 84, 0)
 
+        pdf.set_fill_color(*fill_c)
         pdf.set_text_color(255, 255, 255)
         pdf.set_font('Helvetica', 'B', 10)
-        pdf.cell(0, 7, sanitizar_texto(f"  {emp}   |   Total bonos: ${total}"), 0, 1, 'L', True)
+        pdf.cell(0, 7, sanitizar_texto(
+            f"  {emp}   |   Total Bono: ${total}  "
+            f"(Puntualidad: ${bp} | Uniforme: ${bu} | Admin/Kaizen: ${ba})"
+        ), 0, 1, 'L', True)
 
-        # Detalle de bonos
-        pdf.set_fill_color(245, 247, 248)
         pdf.set_text_color(*C_DARK)
         pdf.set_font('Helvetica', '', 9)
 
-        estado_bp = f"GANADO ${bp}" if bp > 0 else "PERDIDO $0"
-        estado_bu = f"GANADO ${bu}" if bu > 0 else "PERDIDO $0"
-        estado_ba = f"GANADO ${ba}" if ba > 0 else "PERDIDO $0"
-        color_bp  = (22, 163, 74) if bp > 0 else (220, 38, 38)
-        color_bu  = (22, 163, 74) if bu > 0 else (220, 38, 38)
-        color_ba  = (22, 163, 74) if ba > 0 else (220, 38, 38)
+        # Fechas de retardos
+        df_emp_ret = df_retardos[df_retardos['EMPLEADO'] == emp]
+        if not df_emp_ret.empty:
+            fechas_ret = ", ".join(df_emp_ret['FECHA'].tolist())
+            pdf.multi_cell(0, 5, sanitizar_texto(f"   Retardos biometricos ({c_ret}): {fechas_ret}"), 0, 'L')
+            if bp == 0:
+                pdf.set_text_color(220, 38, 38)
+                pdf.set_font('Helvetica', 'B', 9)
+                pdf.cell(0, 5, sanitizar_texto(
+                    "   >> Bono Puntualidad PERDIDO: -$500 (supero el limite de 3 retardos)"
+                ), 0, 1)
+                pdf.set_text_color(*C_DARK)
+                pdf.set_font('Helvetica', '', 9)
 
-        x_start = pdf.get_x()
-        y_start = pdf.get_y()
-        ancho_col = 60
-
-        for label, estado, color in [
-            (f"Puntualidad ({retardos} retardos)", estado_bp, color_bp),
-            ("Uniforme / Operativo", estado_bu, color_bu),
-            ("Admin / Kaizen", estado_ba, color_ba)
-        ]:
+        # Falla Kaizen
+        df_emp_inc = df_incidencias[df_incidencias['EMPLEADO'] == emp]
+        es_kaizen_falla = not df_emp_inc[df_emp_inc['INCIDENCIA'] == 'Falla Admin/Kaizen'].empty
+        if es_kaizen_falla:
+            pdf.set_text_color(220, 38, 38)
+            pdf.set_font('Helvetica', 'B', 9)
+            pdf.cell(0, 5, sanitizar_texto(
+                "   >> No presento Kaizen del mes  ->  Bono Admin/Kaizen PERDIDO: -$500"
+            ), 0, 1)
             pdf.set_text_color(*C_DARK)
-            pdf.set_font('Helvetica', '', 8)
-            pdf.cell(ancho_col, 5, sanitizar_texto(f"  {label}"), 'L B', 0, 'L', True)
-            pdf.set_text_color(*color)
-            pdf.set_font('Helvetica', 'B', 8)
-            pdf.cell(10, 5, sanitizar_texto(estado), 'R B', 0, 'L', True)
+            pdf.set_font('Helvetica', '', 9)
 
-        pdf.ln(6)
+        # Otras incidencias de bitácora
+        df_otras = df_emp_inc[~df_emp_inc['INCIDENCIA'].isin(['Retardo Biométrico', 'Falla Admin/Kaizen'])]
+        for _, inc_row in df_otras.iterrows():
+            pdf.multi_cell(0, 5, sanitizar_texto(
+                f"   Incidencia {inc_row['FECHA']}: {inc_row['INCIDENCIA']} — {str(inc_row['OBSERVACION'])[:60]}"
+            ), 0, 'L')
 
-        # Alertas preventivas
-        alertas = []
-        if retardos == 3:
-            alertas.append("[!] ALERTA: Este colaborador tiene 3 retardos. Un retardo mas y PIERDE el Bono de Puntualidad ($500).")
-        if tiene_grave:
-            alertas.append("[!] FALTA GRAVE registrada: todos los bonos cancelados automaticamente.")
-        if ba == 0 and emp not in EXCEPCIONES_KAIZEN:
-            alertas.append("[!] No entrego propuesta Kaizen este mes. Bono Admin perdido.")
-
-        for alerta in alertas:
+        # Alerta: exactamente 3 retardos (en riesgo)
+        if en_riesgo:
+            pdf.ln(1)
             pdf.set_fill_color(255, 243, 205)
-            pdf.set_text_color(150, 80, 0)
-            pdf.set_font('Helvetica', 'B', 8)
-            pdf.multi_cell(0, 5, sanitizar_texto(f"  {alerta}"), 'L R B', 'L', True)
+            pdf.set_draw_color(202, 138, 4)
+            pdf.set_text_color(133, 77, 14)
+            pdf.set_font('Helvetica', 'B', 9)
+            pdf.multi_cell(190, 6, sanitizar_texto(
+                "[!] ALERTA: Este colaborador tiene 3 retardos. "
+                "Un retardo mas y PIERDE el Bono de Puntualidad ($500)."
+            ), 1, 'L', True)
+            pdf.set_text_color(*C_DARK)
+            pdf.set_fill_color(255, 255, 255)
+            pdf.set_draw_color(*C_SUN)
+            pdf.set_font('Helvetica', '', 9)
 
-        pdf.ln(3)
+        pdf.ln(4)
 
-    # ----------------------------------------------------------
-    # SECCIÓN 4: TABLA RESUMEN DE PAGOS
-    # ----------------------------------------------------------
-    pdf.add_page()
-    pdf.set_font('Helvetica', 'B', 14)
-    pdf.set_text_color(*C_NAVY)
-    pdf.cell(0, 8, sanitizar_texto("4. TABLA DE DISPERSIÓN — TOTAL A PAGAR"), 0, 1, 'L')
-    pdf.set_draw_color(*C_SUN)
-    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-    pdf.ln(3)
-    pdf.set_font('Helvetica', '', 10)
-    pdf.set_text_color(*C_DARK)
-    pdf.multi_cell(0, 5, sanitizar_texto(
-        "La siguiente tabla consolida el monto total de bonos a dispersar por colaborador en este periodo. "
-        "El máximo posible es $1,500 por persona (3 bonos de $500 cada uno). Cualquier monto menor "
-        "indica que se perdió al menos uno de los tres bonos."
-    ), 0, 'J')
-    pdf.ln(4)
-    datos_nomina = [[row['COLABORADOR'], f"${row['$ PUNTUAL']}", f"${row['$ UNIFORM']}", f"${row['$ ADMIN']}", f"${row['TOTAL A PAGAR']}"]
-                    for _, row in df_nomina.iterrows()]
-    tabla_centrada(pdf, ["COLABORADOR", "PUNTUALIDAD", "UNIFORME", "ADMIN", "TOTAL"], datos_nomina, [75, 25, 25, 25, 20])
-    pdf.ln(5)
-    total_general = df_nomina['TOTAL A PAGAR'].sum()
-    pdf.set_font('Helvetica', 'B', 12)
-    pdf.set_text_color(*C_NAVY)
-    pdf.cell(0, 8, sanitizar_texto(f"  TOTAL GENERAL A DISPERSAR: ${total_general:,} MXN"), 1, 1, 'R')
-
-    # ----------------------------------------------------------
-    # SECCIÓN 5: KAIZEN — gráfica + lista de no participantes
-    # ----------------------------------------------------------
-    pdf.add_page()
-    pdf.titulo_header = "REPORTE EJECUTIVO DE MEJORA CONTINUA (KAIZEN)"
-    pdf.set_font('Helvetica', 'B', 14)
-    pdf.set_text_color(*C_NAVY)
-    pdf.cell(0, 8, sanitizar_texto("5. PARTICIPACIÓN EN MEJORA CONTINUA (KAIZEN)"), 0, 1, 'L')
-    pdf.set_draw_color(*C_SUN)
-    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-    pdf.ln(3)
-    pdf.set_font('Helvetica', '', 10)
-    pdf.set_text_color(*C_DARK)
-    pdf.multi_cell(0, 5, sanitizar_texto(
-        "Kaizen (mejora continua) es el programa donde cada colaborador presenta una propuesta mensual "
-        "para mejorar los procesos de Sun Haven. La participacion en este programa es parte de las "
-        "obligaciones laborales y su cumplimiento determina el Bono Administrativo ($500). "
-        "Los dos graficos comparan la participacion del mes anterior versus el mes actual, "
-        "permitiendo identificar si la cultura de mejora esta avanzando o retrocediendo en el equipo."
-    ), 0, 'J')
-    pdf.ln(3)
-    pdf.image(p_kz, x=15, w=180)
-    pdf.ln(5)
-    if stats_kaizen['lista_no']:
-        pdf.set_font('Helvetica', 'B', 10)
-        pdf.set_text_color(*C_DARK)
-        pdf.cell(0, 6, sanitizar_texto("Colaboradores que NO entregaron propuesta este mes:"), 0, 1)
-        pdf.set_font('Helvetica', '', 10)
-        pdf.set_text_color(180, 30, 30)
-        for emp_kz in stats_kaizen['lista_no']:
-            pdf.cell(0, 5, sanitizar_texto(f"  - {emp_kz}"), 0, 1)
-    pdf.ln(8)
-    pdf.set_font('Helvetica', 'B', 12)
-    pdf.set_fill_color(240, 245, 250)
-    pdf.set_text_color(*C_DARK)
-    pdf.cell(0, 8, sanitizar_texto(" CONCLUSIONES Y RECOMENDACIONES EJECUTIVAS"), 1, 1, 'L', True)
-    pdf.set_font('Helvetica', '', 10)
-    pdf.multi_cell(0, 6, sanitizar_texto(pdf_dictamen), 1, 'J')
-
-    # ----------------------------------------------------------
-    # SECCIÓN 6: PROPUESTAS DE MEJORA
-    # ----------------------------------------------------------
-    if propuestas:
+    # ---- SECCION 4: Horas semanales (checadores especiales) ----
+    if horas_semana:
         pdf.add_page()
         pdf.set_font('Helvetica', 'B', 14)
         pdf.set_text_color(*C_NAVY)
-        pdf.cell(0, 8, sanitizar_texto("6. PROPUESTAS DE MEJORA RECIBIDAS"), 0, 1, 'L')
+        pdf.cell(0, 8, sanitizar_texto("4. CONTROL DE HORAS SEMANALES — PERSONAL ADMINISTRATIVO"), 0, 1, 'L')
         pdf.set_draw_color(*C_SUN)
         pdf.line(10, pdf.get_y(), 200, pdf.get_y())
         pdf.ln(3)
         pdf.set_font('Helvetica', '', 10)
         pdf.set_text_color(*C_DARK)
         pdf.multi_cell(0, 5, sanitizar_texto(
-            "A continuacion se transcriben textualmente todas las propuestas recibidas este mes. "
-            "Se recomienda que Direccion revise cada propuesta y comunique al colaborador si fue "
-            "implementada, en evaluacion o descartada. Este seguimiento refuerza la cultura Kaizen."
+            "Control de horas trabajadas por semana ISO para el personal administrativo de tiempo completo, "
+            "calculadas a partir del primer y ultimo registro del checador biometrico por dia. "
+            "La meta de referencia para tiempo completo es 40 horas semanales."
         ), 0, 'J')
-        pdf.ln(4)
+        pdf.ln(5)
+        sec_base = 5
+        for nombre, semanas in sorted(horas_semana.items()):
+            pdf.set_font('Helvetica', 'B', 10)
+            pdf.set_text_color(*C_SUN)
+            pdf.cell(0, 6, sanitizar_texto(f"  {nombre}"), 0, 1, 'L')
+            filas_h = []
+            total_h = 0.0
+            for sw in sorted(semanas):
+                hrs = semanas[sw]
+                total_h += hrs
+                filas_h.append([f"Semana {sw}", f"{hrs:.1f} hrs",
+                                 "OK" if hrs >= 40 else "INCOMPLETA"])
+            filas_h.append(["TOTAL MES", f"{total_h:.1f} hrs", ""])
+            tabla_centrada(pdf, ["Semana ISO", "Horas Trabajadas", "Estatus"],
+                           filas_h, [55, 55, 55])
+            pdf.ln(5)
+    else:
+        sec_base = 4
+
+    # ---- SECCION 5 (o 4): Kaizen ----
+    pdf.add_page()
+    pdf.titulo_header = "REPORTE EJECUTIVO — NOMINA Y MEJORA CONTINUA"
+    pdf.set_font('Helvetica', 'B', 14)
+    pdf.set_text_color(*C_NAVY)
+    pdf.cell(0, 8, sanitizar_texto(f"{sec_base}. PROGRAMA KAIZEN — MEJORA CONTINUA"), 0, 1, 'L')
+    pdf.set_draw_color(*C_SUN)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(3)
+    pct_c = (stats_kaizen['curr_si'] / tot_c * 100) if tot_c > 0 else 0
+    pdf.set_font('Helvetica', '', 10)
+    pdf.set_text_color(*C_DARK)
+    pdf.multi_cell(0, 5, sanitizar_texto(
+        f"El Programa Kaizen es una iniciativa mensual OBLIGATORIA de mejora continua. "
+        f"Cada colaborador que NO entrega su propuesta pierde automaticamente el Bono Admin/Kaizen de $500. "
+        f"Este mes el {pct_c:.1f}% del personal elegible participo ({stats_kaizen['curr_si']} de {tot_c}). "
+        f"Los {stats_kaizen['curr_no']} omisos generaron una perdida de "
+        f"${stats_kaizen['curr_no'] * 500:,} en bonos no devengados."
+    ), 0, 'J')
+    pdf.ln(4)
+    pdf.image(p_kz, x=20, w=170)
+    pdf.ln(5)
+
+    if stats_kaizen['lista_no']:
+        pdf.set_font('Helvetica', 'B', 10)
+        pdf.set_text_color(*C_NAVY)
+        pdf.cell(0, 6, sanitizar_texto("Colaboradores que NO participaron en Kaizen este mes:"), 0, 1)
+        pdf.set_font('Helvetica', '', 10)
+        for emp_no in stats_kaizen['lista_no']:
+            pdf.set_text_color(220, 38, 38)
+            pdf.cell(0, 5, sanitizar_texto(f"  - {emp_no}   >>  Bono Admin/Kaizen PERDIDO: -$500"), 0, 1)
+        pdf.set_text_color(*C_DARK)
+
+    pdf.ln(8)
+    pdf.set_font('Helvetica', 'B', 12)
+    pdf.set_fill_color(240, 245, 250)
+    pdf.set_text_color(*C_NAVY)
+    pdf.cell(0, 8, sanitizar_texto(" CONCLUSIONES Y RECOMENDACIONES EJECUTIVAS"), 1, 1, 'L', True)
+    pdf.set_font('Helvetica', '', 10)
+    pdf.set_text_color(*C_DARK)
+    pdf.multi_cell(0, 6, sanitizar_texto(pdf_dictamen), 1, 'L')
+
+    # ---- SECCION 6 (o 5): Propuestas ----
+    if propuestas:
+        pdf.add_page()
+        pdf.set_font('Helvetica', 'B', 14)
+        pdf.set_text_color(*C_NAVY)
+        pdf.cell(0, 8, sanitizar_texto(f"{sec_base + 1}. PROPUESTAS DE MEJORA RECIBIDAS"), 0, 1, 'L')
+        pdf.set_draw_color(*C_SUN)
+        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+        pdf.ln(3)
+        pdf.set_font('Helvetica', '', 10)
+        pdf.set_text_color(*C_DARK)
+        pdf.multi_cell(0, 5, sanitizar_texto(
+            "A continuacion se presentan todas las propuestas de mejora entregadas este mes. "
+            "Se recomienda revisar cada idea y dar seguimiento a las mas viables en la proxima reunion de equipo. "
+            "Las propuestas son la base del ciclo de mejora continua de la institucion."
+        ), 0, 'J')
+        pdf.ln(5)
+
         for prop in propuestas:
+            if pdf.get_y() > 250:
+                pdf.add_page()
             pdf.set_fill_color(240, 245, 250)
             pdf.set_font('Helvetica', 'B', 10)
             pdf.set_text_color(*C_NAVY)
             pdf.cell(130, 8, sanitizar_texto(f"  Colaborador(a): {prop['nombre']}"), 'L T', 0, 'L', True)
             pdf.set_font('Helvetica', 'I', 9)
             pdf.cell(60, 8, sanitizar_texto(f"Fecha: {prop['fecha']} "), 'T R', 1, 'R', True)
-            area = prop.get('area', '')
-            if area:
-                pdf.set_font('Helvetica', 'B', 9)
+            if prop.get('area'):
+                pdf.set_font('Helvetica', 'I', 9)
                 pdf.set_text_color(*C_SUN)
-                pdf.cell(0, 6, sanitizar_texto(f"  Area: {area}"), 'L R', 1, 'L', False)
+                pdf.cell(0, 6, sanitizar_texto(f"  Area: {prop['area']}"), 'L R', 1, 'L', False)
             pdf.set_font('Helvetica', '', 10)
             pdf.set_text_color(*C_DARK)
             pdf.multi_cell(0, 6, sanitizar_texto(f"Propuesta:\n{prop['propuesta']}\n"), 'L R B', 'J', False)
@@ -821,33 +885,41 @@ def limpiar_biometrico(file_bytes):
     ws = wb.active
     datos = []
     emp = None
-
+    
     for row in ws.iter_rows(values_only=True):
         row_str = [str(cell) if cell is not None else "" for cell in row]
-
+        
+        # Buscar la fila que contiene el nombre del empleado
         if any("ID:" in str(c) for c in row_str):
             for i, c in enumerate(row_str):
                 if "Nombre:" in str(c):
                     try:
-                        # Normalizar: elimina espacios dobles y extremos
-                        emp = " ".join(row_str[i+2].split())
+                        emp = " ".join(row_str[i+2].split())  # normaliza espacios dobles
                     except IndexError:
                         pass
                     break
-
+        
+        # Si ya tenemos un empleado, buscar las celdas con formato de hora (ej. "08:15")
         elif emp and any(":" in str(cell) for cell in row_str):
-            for dia, celda in enumerate(row_str, 1):
+            for dia, celda in enumerate(row_str, 1): # Empezamos a contar desde el día 1
                 celda = str(celda).strip()
                 if len(celda) >= 5 and ":" in celda:
-                    datos.append({"Checador": emp, "Día": dia, "Entrada": celda[:5]})
+                    # Entrada = primeros 5 chars; Salida = últimos 5 chars si hay >=10
+                    datos.append({
+                        "Checador": emp,
+                        "Día": dia,
+                        "Entrada": celda[:5],
+                        "Salida": celda[-5:] if len(celda) >= 10 else ""
+                    })
+            # Reiniciamos el empleado después de procesar su fila de horarios
             emp = None
-
+            
     return pd.DataFrame(datos)
 
 def procesar_super_nomina(df_bio, df_bitacora, df_kaizen, mes_num, anio_num):
-    # Lookup case-insensitive: claves normalizadas a MAYÚSCULAS
+    # Lookup case-insensitive para evitar bugs de mayúsculas/minúsculas
     EMPLEADOS_DB_UPPER = {" ".join(k.upper().split()): v for k, v in EMPLEADOS_DB.items()}
-    CHECADORES_ESP_SET = {c.upper() for c in CHECADORES_ESPECIALES}
+    CHECADORES_ESP_SET = {" ".join(c.upper().split()) for c in CHECADORES_ESPECIALES}
     HORA_CORTE_NOCHE   = datetime.strptime("14:00", "%H:%M").time()
 
     ret_list = []
@@ -859,56 +931,70 @@ def procesar_super_nomina(df_bio, df_bitacora, df_kaizen, mes_num, anio_num):
             if ch not in EMPLEADOS_DB_UPPER:
                 continue
             nm  = EMPLEADOS_DB_UPPER[ch]
-            ent = row['Entrada']
 
-            # Ignorar checadores especiales (no se les calculan retardos)
+            # Ignorar checadores especiales (administrativos)
             if ch in CHECADORES_ESP_SET:
                 continue
 
+            ent = row['Entrada']
             try:
                 he = datetime.strptime(ent, "%H:%M").time()
-                # Filtro nocturno: ignorar punches antes de las 14:00 para enfermeras de noche
+
+                # Filtro 14:00: ignorar marcaciones diurnas de enfermeras de turno nocturno
                 if nm in ENFERMERAS_NOCHE and he < HORA_CORTE_NOCHE:
                     continue
+
                 lim = HORA_ENTRADA_NOCHE if nm in ENFERMERAS_NOCHE else HORA_ENTRADA_DIA
+
                 if he > lim:
-                    dt_ent    = datetime.combine(datetime.today(), he)
-                    dt_lim    = datetime.combine(datetime.today(), lim)
+                    dt_ent = datetime.combine(datetime.today(), he)
+                    dt_lim = datetime.combine(datetime.today(), lim)
                     min_tarde = int((dt_ent - dt_lim).total_seconds() / 60)
                     ret_list.append({
-                        "FECHA":       f"{anio_num}-{mes_num:02d}-{row['Día']:02d}",
-                        "EMPLEADO":    nm,
-                        "INCIDENCIA":  "Retardo Biométrico",
-                        "OBSERVACION": f"Entró a las {ent} ({min_tarde} min tarde)"
+                        "FECHA": f"{anio_num}-{mes_num:02d}-{int(row['Día']):02d}",
+                        "EMPLEADO": nm,
+                        "INCIDENCIA": "Retardo Biométrico",
+                        "OBSERVACION": f"Entro a las {ent} ({min_tarde} min tarde)"
                     })
             except Exception:
                 pass
 
     df_ret = pd.DataFrame(ret_list)
-    
-    # 2. Procesar Kaizen
-    part, nopart, props = [], [], []
-    stats_k = {'curr_si':0, 'curr_no':0, 'prev_si':0, 'prev_no':0, 'lista_no':[]}
-    
-    if not df_kaizen.empty:
-        # Asegurar formato de fecha
-        df_kaizen['Marca temporal'] = pd.to_datetime(df_kaizen['Marca temporal'], dayfirst=True, errors='coerce')
-        
-        # COLUMNAS REALES DEL FORM: Marca temporal | Sucursal | Colaborador | Área de la propuesta | Propuesta de mejora
-        COL_NOMBRE    = 'Colaborador'
-        COL_PROPUESTA = 'Propuesta de mejora'
-        COL_AREA      = 'Área de la propuesta'
 
-        # Participación mes actual
-        df_k_curr = df_kaizen[(df_kaizen['Marca temporal'].dt.month == mes_num) & (df_kaizen['Marca temporal'].dt.year == anio_num)]
+    # 2. Procesar Kaizen (usando nombres de columnas en lugar de posición)
+    COL_NOMBRE    = 'Colaborador'
+    COL_PROPUESTA = 'Propuesta de mejora'
+    COL_AREA      = 'Area de la propuesta'
+
+    part, nopart, props = [], [], []
+    stats_k = {'curr_si': 0, 'curr_no': 0, 'prev_si': 0, 'prev_no': 0, 'lista_no': []}
+
+    if not df_kaizen.empty:
+        df_kaizen['Marca temporal'] = pd.to_datetime(df_kaizen['Marca temporal'], dayfirst=True, errors='coerce')
+
+        # Detectar nombre real de la columna Área (puede tener acento o no)
+        col_area_real = COL_AREA
+        for c in df_kaizen.columns:
+            if 'rea' in c.lower() and 'propuesta' in c.lower():
+                col_area_real = c
+                break
+
+        # Mes actual
+        df_k_curr = df_kaizen[
+            (df_kaizen['Marca temporal'].dt.month == mes_num) &
+            (df_kaizen['Marca temporal'].dt.year  == anio_num)
+        ]
         part   = df_k_curr[COL_NOMBRE].str.strip().unique().tolist() if COL_NOMBRE in df_k_curr.columns else []
         nopart = [e for e in ENFERMERAS_LISTA if e not in part and e not in EXCEPCIONES_KAIZEN]
 
-        # Participación mes anterior (para tendencia)
-        m_prev    = mes_num - 1 if mes_num > 1 else 12
-        a_prev    = anio_num if mes_num > 1 else anio_num - 1
-        df_k_prev = df_kaizen[(df_kaizen['Marca temporal'].dt.month == m_prev) & (df_kaizen['Marca temporal'].dt.year == a_prev)]
-        part_p    = df_k_prev[COL_NOMBRE].str.strip().unique().tolist() if COL_NOMBRE in df_k_prev.columns else []
+        # Mes anterior (tendencia)
+        m_prev = mes_num - 1 if mes_num > 1 else 12
+        a_prev = anio_num  if mes_num > 1 else anio_num - 1
+        df_k_prev = df_kaizen[
+            (df_kaizen['Marca temporal'].dt.month == m_prev) &
+            (df_kaizen['Marca temporal'].dt.year  == a_prev)
+        ]
+        part_p = df_k_prev[COL_NOMBRE].str.strip().unique().tolist() if COL_NOMBRE in df_k_prev.columns else []
 
         stats_k = {
             'curr_si': len([e for e in ENFERMERAS_LISTA if e in part]),
@@ -918,57 +1004,63 @@ def procesar_super_nomina(df_bio, df_bitacora, df_kaizen, mes_num, anio_num):
             'lista_no': nopart
         }
 
-        props = [{'nombre':    r.get(COL_NOMBRE, ''),
-                  'fecha':     r['Marca temporal'].strftime("%d/%m/%Y"),
-                  'area':      str(r.get(COL_AREA, '')),
-                  'propuesta': str(r.get(COL_PROPUESTA, ''))} for _, r in df_k_curr.iterrows()]
-            
-    # Generar incidencias por NO participar en Kaizen
-    df_admin = pd.DataFrame([{"FECHA": f"{anio_num}-{mes_num:02d}-28", "EMPLEADO": e, "INCIDENCIA": "Falla Admin/Kaizen", "OBSERVACION": "No presentó propuesta"} for e in nopart])
-    
-    # 3. Procesar Bitácora Manual
+        props = [{
+            'nombre':    str(r.get(COL_NOMBRE, '')),
+            'fecha':     r['Marca temporal'].strftime("%d/%m/%Y"),
+            'area':      str(r.get(col_area_real, '')),
+            'propuesta': str(r.get(COL_PROPUESTA, ''))
+        } for _, r in df_k_curr.iterrows()]
+
+    # Incidencias por NO participar en Kaizen
+    df_admin = pd.DataFrame([{
+        "FECHA": f"{anio_num}-{mes_num:02d}-28",
+        "EMPLEADO": e,
+        "INCIDENCIA": "Falla Admin/Kaizen",
+        "OBSERVACION": "No presento propuesta de mejora Kaizen"
+    } for e in nopart])
+
+    # 3. Bitácora Manual
     df_bit = pd.DataFrame(columns=["FECHA", "EMPLEADO", "INCIDENCIA", "OBSERVACION"])
     if not df_bitacora.empty:
         df_bitacora_copy = df_bitacora.copy()
         df_bitacora_copy['FECHA'] = pd.to_datetime(df_bitacora_copy['FECHA'], errors='coerce')
-        df_bit = df_bitacora_copy[(df_bitacora_copy['FECHA'].dt.month == mes_num) & (df_bitacora_copy['FECHA'].dt.year == anio_num)].copy()
-        if not df_bit.empty: 
+        df_bit = df_bitacora_copy[
+            (df_bitacora_copy['FECHA'].dt.month == mes_num) &
+            (df_bitacora_copy['FECHA'].dt.year  == anio_num)
+        ].copy()
+        if not df_bit.empty:
             df_bit['FECHA'] = df_bit['FECHA'].dt.strftime('%Y-%m-%d')
-    
-    # 4. Consolidar todas las incidencias
+
+    # 4. Consolidar
     df_todas = pd.concat([df_ret, df_bit, df_admin], ignore_index=True)
-    
+
     # 5. Calcular Nómina Final
     nomina = []
     for emp in sorted(list(set(EMPLEADOS_DB.values()))):
-        df_e = df_todas[df_todas['EMPLEADO'] == emp]
-        
-        c_ret = len(df_e[df_e['INCIDENCIA'] == 'Retardo Biométrico'])
-        f_kz = not df_e[df_e['INCIDENCIA'] == 'Falla Admin/Kaizen'].empty
-        # Cualquier otra incidencia manual se considera falta para uniforme (Leve o Grave)
-        f_gr = len(df_e[df_e['INCIDENCIA'].str.contains('Grave', case=False, na=False)])
+        df_e   = df_todas[df_todas['EMPLEADO'] == emp]
+        c_ret  = len(df_e[df_e['INCIDENCIA'] == 'Retardo Biométrico'])
+        f_kz   = not df_e[df_e['INCIDENCIA'] == 'Falla Admin/Kaizen'].empty
+        f_gr   = len(df_e[df_e['INCIDENCIA'].str.contains('Grave', case=False, na=False)])
         f_otras = len(df_e) - c_ret - (1 if f_kz else 0)
-        
-        # Reglas de Bonos
-        bp = 500 if c_ret <= 3 else 0  # Tolerancia de 3 retardos al mes
-        bu = 500 if f_otras == 0 else 0 # Si hay faltas de uniforme, celular, etc. pierde bono uniforme
-        ba = 0 if f_kz else 500         # Pierde bono admin si no hace Kaizen
-        
-        # Si comete una falta GRAVE (Agresión/Regla de oro), pierde TODOS los bonos
-        if f_gr > 0: 
+
+        bp = 500 if c_ret <= 3 else 0
+        bu = 500 if f_otras == 0 else 0
+        ba = 0   if f_kz    else 500
+
+        if f_gr > 0:
             bp, bu, ba = 0, 0, 0
-            
+
         nomina.append({
-            "COLABORADOR": emp, 
-            "RETARDOS": c_ret, 
-            "INCIDENCIAS LEVES/GRAVES": f_otras, 
-            "$ PUNTUAL": bp, 
-            "$ UNIFORM": bu, 
-            "$ ADMIN": ba, 
+            "COLABORADOR": emp,
+            "RETARDOS": c_ret,
+            "INCIDENCIAS LEVES/GRAVES": f_otras,
+            "$ PUNTUAL": bp,
+            "$ UNIFORM": bu,
+            "$ ADMIN": ba,
             "TOTAL A PAGAR": bp + bu + ba
         })
-        
-    return pd.DataFrame(nomina), df_todas, df_ret, stats_k, props
+
+    return pd.DataFrame(nomina), df_todas, df_ret, stats_k, props, df_bio
 
 # ==========================================
 # 5. APLICACIÓN PRINCIPAL (ENRUTADOR)
@@ -1234,17 +1326,17 @@ def main():
                         st.session_state['nom'] = procesar_super_nomina(limpiar_biometrico(file_asis.read()), df_bitacora, fetch_kaizen_data(), mes_eval, anio_eval)
             
             if 'nom' in st.session_state:
-                df_n, df_i, df_r, s_k, p_k = st.session_state['nom']
+                df_n, df_i, df_r, s_k, p_k, df_bio_nom = st.session_state['nom']
                 m_str = f"{mes_eval:02d}/{anio_eval}"
                 st.markdown(f"<h1 style='color:{HEX_GREEN};'>Total a Dispersar: ${df_n['TOTAL A PAGAR'].sum():,}</h1>", unsafe_allow_html=True)
-                
+
                 html_dictamen, pdf_dictamen = generar_dictamen_nomina(s_k, df_r)
-                
+
                 st.markdown(f"""<div class='dictamen-box'>
                         <h4 class='dictamen-title'>Dictamen y Recomendaciones Ejecutivas</h4>
                         <p class='dictamen-text'>{html_dictamen}</p></div>""", unsafe_allow_html=True)
 
-                pdf_b = generar_pdf_nomina(df_n, df_i, df_r, s_k, p_k, m_str, pdf_dictamen)
+                pdf_b = generar_pdf_nomina(df_n, df_i, df_r, s_k, p_k, df_bio_nom, mes_eval, anio_eval, m_str, pdf_dictamen)
                 st.download_button("Descargar Reporte de Nómina (PDF)", data=pdf_b, file_name=f"Nomina_{m_str.replace('/','_')}.pdf", mime="application/pdf")
                 
                 st.write("#### 1. Resumen General de Pagos por Rubro")
