@@ -1496,7 +1496,7 @@ def main():
             st.plotly_chart(fig_gauge, use_container_width=True, config={'displayModeBar': False})
             st.markdown("</div>", unsafe_allow_html=True)
 
-        tabs_op = st.tabs(["📊 Tablero Analítico", "📈 Tendencias Base", "👤 Evaluación RRHH", "⚖️ Auditoría Legal", "🗄️ Raw Data"])
+        tabs_op = st.tabs(["Tablero Analítico", "Tendencias Base", "Evaluación RRHH", "Auditoría Legal", "Raw Data"])
         
         with tabs_op[0]:
             if st.button("📄 Exportar Reporte Ejecutivo (PDF)", type="primary"):
