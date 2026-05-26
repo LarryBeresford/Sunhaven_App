@@ -8,3 +8,4 @@ matplotlib
 seaborn
 openpyxl
 fpdf
+streamlit-option-menu
