@@ -70,34 +70,49 @@ st.markdown("""
 HEX_NAVY, HEX_RED, HEX_GREEN, HEX_SUN = "#1e293b", "#dc2626", "#10b981", "#d35400"
 C_NAVY, C_SUN, C_DARK, C_LIGHT = (31, 58, 82), (211, 84, 0), (44, 62, 80), (245, 247, 248)
 
+# --- TABLA MAESTRA DE PERSONAL ---
+# Para agregar alguien nuevo: añade una fila aquí y todo lo demás se actualiza solo.
+# supervisora=True  → no se evalúa retardo biométrico (horario abierto)
+# kaizen=False      → no participa en programa Kaizen
+# horas=True        → se incluye en reporte de horas semanales (personal admin/tiempo completo)
+PERSONAL_DB = [
+    # checador                        nombre completo                              depto            supervisora  kaizen  horas
+    {"c": "ALE",                      "n": "Alejandra Itzel de la Fuente Ramírez", "d": "Fisioterapia",  "sup": False, "kz": True,  "hrs": False},
+    {"c": "ARIANA",                   "n": "Ariana Villanueva Temores",             "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
+    {"c": "Araceli Figueroa",         "n": "Blanca Aracely Figueroa Marroquín",     "d": "Enfermería",    "sup": True,  "kz": False, "hrs": False},
+    {"c": "BLANCARUVC",               "n": "Blanca Estela Ruvalcaba Ruiz",          "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
+    {"c": "CARMEN",                   "n": "Carmen Torres Reyes",                   "d": "Cocina",        "sup": False, "kz": True,  "hrs": False},
+    {"c": "ConsueloCeja",             "n": "Consuelo Ceja Liborio",                 "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
+    {"c": "CRISTY",                   "n": "Cristina Ramos Aquino",                 "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
+    {"c": "HUGO",                     "n": "Hugo Silva Esparza",                    "d": "Mantenimiento", "sup": False, "kz": True,  "hrs": True },
+    {"c": "JACK",                     "n": "Jaqueline Hernández Sosa",              "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
+    {"c": "CESAR",                    "n": "Julio César Pérez Carranza",             "d": "Actividades",   "sup": False, "kz": True,  "hrs": True },
+    {"c": "MARIASEO",                 "n": "Maribel Herrera Mauricio",               "d": "Aseo",          "sup": False, "kz": True,  "hrs": False},
+    {"c": "MarthaCastro",             "n": "Martha Manuela Castro García",           "d": "Cocina",        "sup": False, "kz": True,  "hrs": True },
+    {"c": "MAYT",                     "n": "Mayte López Romero",                    "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
+    {"c": "MONI",                     "n": "Mónica Teresa Grande Figueroa",          "d": "Lavandería",    "sup": False, "kz": True,  "hrs": True },
+    {"c": "NANCI",                    "n": "Nancy Estephania González Velasco",      "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
+    {"c": "NIRE",                     "n": "Nireida Flores Núñez",                  "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
+    {"c": "Olga Gabriela Jimenez",    "n": "Olga Gabriela Jiménez Medina",          "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
+    {"c": "RosaCastro",               "n": "Rosa Isela Antonieta Castro García",     "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
+    {"c": "SANDY",                    "n": "Sandy Yusbeth Cruz González",            "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
+    {"c": "Silvia Rodriguez",         "n": "Silvia Rodríguez Reynaga",              "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
+    {"c": "VERO",                     "n": "Verónica Janeth Gómez López",           "d": "Enfermería",    "sup": False, "kz": True,  "hrs": False},
+    {"c": "YamileLuquin",             "n": "Yareli Yamile Luquin Puga",             "d": "Enfermería",    "sup": True,  "kz": False, "hrs": False},
+    {"c": "Guadalupe",                "n": "Guadalupe Georgia Lopez Ceja",           "d": "Enfermería",    "sup": False, "kz": False, "hrs": False},
+]
+
+# --- Constantes derivadas automáticamente de PERSONAL_DB ---
+EMPLEADOS_DB          = {p["c"]: p["n"] for p in PERSONAL_DB}
+ENFERMERAS_LISTA      = [p["n"] for p in PERSONAL_DB if p["d"] == "Enfermería"]
+SUPERVISORAS_ENFERMERIA = [p["n"] for p in PERSONAL_DB if p["d"] == "Enfermería" and p["sup"]]
+EXCEPCIONES_KAIZEN    = [p["n"] for p in PERSONAL_DB if not p["kz"]]
+CHECADORES_ESPECIALES = [p["c"] for p in PERSONAL_DB if p["hrs"]]
+
 # --- REGLAS DE NEGOCIO ---
 ENFERMERAS_ROL_A = ["Consuelo Ceja Liborio", "Jaqueline Hernández Sosa"]
 ENFERMERAS_ROL_B = ["Silvia Rodríguez Reynaga", "Guadalupe Georgia Lopez Ceja"]
 ENFERMERAS_NOCHE = ENFERMERAS_ROL_A + ENFERMERAS_ROL_B
-
-EMPLEADOS_DB = {
-    "ALE": "Alejandra Itzel de la Fuente Ramírez", "ARIANA": "Ariana Villanueva Temores",
-    "Araceli Figueroa": "Blanca Aracely Figueroa Marroquín", "BLANCARUVC": "Blanca Estela Ruvalcaba Ruiz",
-    "CARMEN": "Carmen Torres Reyes", "ConsueloCeja": "Consuelo Ceja Liborio", "CRISTY": "Cristina Ramos Aquino", 
-    "HUGO": "Hugo Silva Esparza", "JACK": "Jaqueline Hernández Sosa", "CESAR": "Julio César Pérez Carranza",
-    "MARIASEO": "Maribel Herrera Mauricio", "MarthaCastro": "Martha Manuela Castro García",
-    "MAYT": "Mayte López Romero", "MONI": "Mónica Teresa Grande Figueroa", "NANCI": "Nancy Estephania González Velasco", 
-    "NIRE": "Nireida Flores Núñez", "Olga Gabriela Jimenez": "Olga Gabriela Jiménez Medina", 
-    "RosaCastro": "Rosa Isela Antonieta Castro García", "SANDY": "Sandy Yusbeth Cruz González", 
-    "Silvia Rodriguez": "Silvia Rodríguez Reynaga", "VERO": "Verónica Janeth Gómez López", 
-    "YamileLuquin": "Yareli Yamile Luquin Puga", "Guadalupe": "Guadalupe Georgia Lopez Ceja"
-}
-
-ENFERMERAS_LISTA = [
-    "Ariana Villanueva Temores", "Blanca Aracely Figueroa Marroquín", "Blanca Estela Ruvalcaba Ruiz",
-    "Consuelo Ceja Liborio", "Cristina Ramos Aquino", "Jaqueline Hernández Sosa", "Mayte López Romero",
-    "Nancy Estephania González Velasco", "Nireida Flores Núñez", "Olga Gabriela Jiménez Medina",
-    "Rosa Isela Antonieta Castro García", "Sandy Yusbeth Cruz González", "Silvia Rodríguez Reynaga",
-    "Verónica Janeth Gómez López", "Yareli Yamile Luquin Puga", "Guadalupe Georgia Lopez Ceja"
-]
-
-EXCEPCIONES_KAIZEN = ["Yareli Yamile Luquin Puga", "Blanca Aracely Figueroa Marroquín", "Guadalupe Georgia Lopez Ceja"]
-CHECADORES_ESPECIALES = ["CESAR", "MONI", "MARTHACASTRO", "HUGO"] 
 HORA_ENTRADA_DIA, HORA_ENTRADA_NOCHE = datetime.strptime("08:15", "%H:%M").time(), datetime.strptime("20:15", "%H:%M").time()
 TIPO_INCIDENCIAS = ["Falta de uniforme (Leve)", "Uso de celular (Leve)", "No hacer entrega (Leve)", "No hacer ronda (Leve)", "Salida anticipada (Leve)", "AGRESIÓN / CONFLICTO (Grave)", "REGLA DE ORO (Grave)"]
 
@@ -1191,6 +1206,8 @@ def procesar_super_nomina(df_bio, df_bitacora, df_kaizen, mes_num, anio_num):
     EMPLEADOS_DB_UPPER = {" ".join(k.upper().split()): v for k, v in EMPLEADOS_DB.items()}
     CHECADORES_ESP_SET = {" ".join(c.upper().split()) for c in CHECADORES_ESPECIALES}
     HORA_CORTE_NOCHE   = datetime.strptime("14:00", "%H:%M").time()
+    # Solo enfermeras de turno fijo (excluye supervisoras y personal no enfermero)
+    ENFERMERAS_RETARDO = set(ENFERMERAS_LISTA) - set(SUPERVISORAS_ENFERMERIA)
 
     ret_list = []
 
@@ -1200,6 +1217,10 @@ def procesar_super_nomina(df_bio, df_bitacora, df_kaizen, mes_num, anio_num):
             if ch not in EMPLEADOS_DB_UPPER:
                 continue
             nm  = EMPLEADOS_DB_UPPER[ch]
+
+            # Solo aplica retardo a enfermeras de turno fijo, no a supervisoras ni otro personal
+            if nm not in ENFERMERAS_RETARDO:
+                continue
 
             if ch in CHECADORES_ESP_SET:
                 continue
