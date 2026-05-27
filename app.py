@@ -56,14 +56,19 @@ st.markdown("""
     .dictamen-text { color: #334155; font-size: 1rem; line-height: 1.6; margin: 0;}
     
     /* Tabs & Buttons */
-    .stTabs [data-baseweb="tab-list"] { gap: 8px; border-bottom: 2px solid #E2E8F0; padding-bottom: 0; }
-    .stTabs [data-baseweb="tab"] { height: 48px; background-color: transparent; border: none; padding: 0 20px; font-weight: 600; color: #64748B; font-size: 0.95rem; border-radius: 6px 6px 0 0; transition: all 0.2s; }
+
+    stTabs [data-baseweb="tab-list"] { gap: 8px; border-bottom: 2px solid #E2E8F0; padding-bottom: 0; }
+    .stTabs [data-baseweb="tab"] { height: 50px; background-color: transparent; border: none; padding: 0 24px; font-weight: 700; color: #64748B; font-size: 1.15rem; border-radius: 6px 6px 0 0; transition: all 0.2s; }
     .stTabs [aria-selected="true"] { color: #0F172A !important; border-bottom: 3px solid #F97316 !important; background-color: #ffffff !important; }
     
-    @keyframes vibrar { 0% { transform: translateX(0); } 20% { transform: translateX(-2px) rotate(-1deg); } 40% { transform: translateX(2px) rotate(1deg); } 60% { transform: translateX(-2px) rotate(-1deg); } 80% { transform: translateX(2px) rotate(1deg); } 100% { transform: translateX(0); } }
-    .stButton > button, .stDownloadButton > button { border-radius: 6px !important; font-weight: 600 !important; transition: all 0.2s ease !important; }
+    .stButton > button, .stDownloadButton > button { border-radius: 6px !important; font-weight: 600 !important; transition: all 0.1s ease !important; }
     .stButton > button[kind="primary"] { background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%) !important; border: none !important; color: white !important;}
-    .stButton > button:hover, .stDownloadButton > button:hover { animation: vibrar 0.35s linear !important; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    
+    /* Efecto al pasar el mouse: sutil elevación */
+    .stButton > button:hover, .stDownloadButton > button:hover { transform: translateY(-1px) !important; box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important; }
+    
+    /* Efecto al hacer clic: hundimiento */
+    .stButton > button:active, .stDownloadButton > button:active { transform: translateY(2px) !important; box-shadow: 0 1px 2px rgba(0,0,0,0.1) !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1580,7 +1585,7 @@ def main():
             st.plotly_chart(fig_gauge, use_container_width=True, config={'displayModeBar': False})
             st.markdown("</div>", unsafe_allow_html=True)
 
-        tabs_op = st.tabs(["📊 Tablero Analítico", "📈 Tendencias Base", "👤 Evaluación RRHH", "⚖️ Auditoría Legal", "🗄️ Raw Data"])
+        tabs_op = st.tabs(["Tablero Analítico", "Tendencias Base", "Evaluación RRHH", "Auditoría Legal", "Raw Data"])
         
         with tabs_op[0]:
             if st.button("📄 Exportar Reporte Ejecutivo (PDF)", type="primary"):
@@ -1651,7 +1656,7 @@ def main():
     elif modulo_activo == "Gestión de Nómina":
         st.title("Gestión de Nómina y Mejora Continua")
         df_bitacora = cargar_bitacora()
-        tabs_nom = st.tabs(["Ejecución Financiera", "Bitácora Digital", "Data Cruda"])
+        tabs_nom = st.tabs(["Ejecución Financiera", "Registro de Auditoría", "Ingesta de Datos"])
 
         with tabs_nom[1]:
             st.markdown("<div class='premium-card'><h3 class='section-title'>Nueva Incidencia Operativa</h3>", unsafe_allow_html=True)
@@ -1790,7 +1795,7 @@ def main():
         with t_col2: render_kpi_card("Cobertura Global", v_noc)
         with t_col3: render_kpi_card("Alertas de Fraude", alertas, threshold=0.1, suffix="") 
 
-        tabs_noc = st.tabs(["🛡️ Control de Rondas e Integridad", "🕵️ Log Forense (Trazabilidad)"])
+        tabs_noc = st.tabs(["Control de Rondas e Integridad", "Log Forense (Trazabilidad)"])
         with tabs_noc[0]:
             if st.button("📄 Exportar Reporte de Rondines (PDF)", type="primary"):
                 pdf_b = generar_pdf_rondines(df_resumen, df_ron_sort, escaneos, alertas, f"{fecha_inicio.strftime('%d/%m/%Y')} al {fecha_fin.strftime('%d/%m/%Y')}", pdf_dictamen)
