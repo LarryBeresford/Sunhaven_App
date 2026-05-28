@@ -32,7 +32,7 @@ st.markdown("""
     .block-container { padding-top: 1.5rem; max-width: 96%; }
     
     /* Clean UI */
-    #MainMenu {visibility: hidden;} footer {visibility: hidden;}
+    #MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;}
     [data-testid="stSidebarNav"] {display: none !important;}
     
     /* Typography */
@@ -56,19 +56,14 @@ st.markdown("""
     .dictamen-text { color: #334155; font-size: 1rem; line-height: 1.6; margin: 0;}
     
     /* Tabs & Buttons */
-
-    stTabs [data-baseweb="tab-list"] { gap: 8px; border-bottom: 2px solid #E2E8F0; padding-bottom: 0; }
-    .stTabs [data-baseweb="tab"] { height: 50px; background-color: transparent; border: none; padding: 0 24px; font-weight: 700; color: #64748B; font-size: 1.15rem; border-radius: 6px 6px 0 0; transition: all 0.2s; }
+    .stTabs [data-baseweb="tab-list"] { gap: 8px; border-bottom: 2px solid #E2E8F0; padding-bottom: 0; }
+    .stTabs [data-baseweb="tab"] { height: 52px; background-color: transparent; border: none; padding: 0 22px; font-weight: 700; color: #64748B; font-size: 1.05rem; border-radius: 6px 6px 0 0; transition: all 0.2s; }
     .stTabs [aria-selected="true"] { color: #0F172A !important; border-bottom: 3px solid #F97316 !important; background-color: #ffffff !important; }
     
-    .stButton > button, .stDownloadButton > button { border-radius: 6px !important; font-weight: 600 !important; transition: all 0.1s ease !important; }
-    .stButton > button[kind="primary"] { background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%) !important; border: none !important; color: white !important;}
-    
-    /* Efecto al pasar el mouse: sutil elevación */
-    .stButton > button:hover, .stDownloadButton > button:hover { transform: translateY(-1px) !important; box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important; }
-    
-    /* Efecto al hacer clic: hundimiento */
-    .stButton > button:active, .stDownloadButton > button:active { transform: translateY(2px) !important; box-shadow: 0 1px 2px rgba(0,0,0,0.1) !important; }
+    .stButton > button, .stDownloadButton > button { border-radius: 6px !important; font-weight: 600 !important; transition: all 0.15s ease !important; }
+    .stButton > button[kind="primary"] { background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%) !important; border: none !important; color: white !important; }
+    .stButton > button:hover, .stDownloadButton > button:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.15); filter: brightness(1.08); }
+    .stButton > button:active, .stDownloadButton > button:active { transform: scale(0.97) !important; box-shadow: inset 0 2px 6px rgba(0,0,0,0.25) !important; filter: brightness(0.92) !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1558,7 +1553,7 @@ def main():
             ico = sum(kpi.values()) / len(kpi) if kpi else 0
             
             df_a = pd.DataFrame.from_dict(kpi, orient='index', columns=['V']).sort_values('V', ascending=False).reset_index()
-            df_c = pd.DataFrame.from_dict({"Uniforme": df_serv[c_uni].mean(), "Basura": df_serv[c_bas].mean(), "Ropa": df_serv[c_lav_r].mean(), "Jabon": df_serv[c_lav_j].mean(), "Zonas": df_serv[c_lim].mean(), "5S Roperos": df_rop[c_5s].mean(), "Tendido Camas": df_rop[c_cam].mean(), "Rondines Noct": v_noc}, orient='index', columns=['V']).sort_values('V', ascending=True).reset_index()
+            df_c = pd.DataFrame.from_dict({"Uniforme Cocina": df_serv[c_uni].mean(), "Limpieza de Cocina": df_serv[c_bas].mean(), "Separación de Ropa": df_serv[c_lav_r].mean(), "Consumo de Detergente": df_serv[c_lav_j].mean(), "Limpieza de Zonas": df_serv[c_lim].mean(), "Orden en Roperos": df_rop[c_5s].mean(), "Tendido Camas": df_rop[c_cam].mean(), "Rondas Nocturnas": v_noc}, orient='index', columns=['V']).sort_values('V', ascending=True).reset_index()
 
             personal_diurno = set(df_rop[col_enf].dropna().unique()) - set(ENFERMERAS_NOCHE)
             ranking_data = [{"Colaborador": e, "Turno": "Nocturno", "Puntaje (%)": round(p_noc.get(e,0),1)} for e in ENFERMERAS_NOCHE if p_noc.get(e) is not None] + [{"Colaborador": e, "Turno": "Vespertino", "Puntaje (%)": round(df_rop[df_rop[col_enf]==e]['Promedio'].mean(),1)} for e in personal_diurno if pd.notna(df_rop[df_rop[col_enf]==e]['Promedio'].mean())]
@@ -1656,7 +1651,7 @@ def main():
     elif modulo_activo == "Gestión de Nómina":
         st.title("Gestión de Nómina y Mejora Continua")
         df_bitacora = cargar_bitacora()
-        tabs_nom = st.tabs(["Ejecución Financiera", "Registro de Auditoría", "Ingesta de Datos"])
+        tabs_nom = st.tabs(["Ejecución Financiera", "Bitácora Digital", "Data Cruda"])
 
         with tabs_nom[1]:
             st.markdown("<div class='premium-card'><h3 class='section-title'>Nueva Incidencia Operativa</h3>", unsafe_allow_html=True)
