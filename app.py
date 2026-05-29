@@ -32,7 +32,7 @@ st.markdown("""
     .block-container { padding-top: 1.5rem; max-width: 96%; }
     
     /* Clean UI */
-    #MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;}
+    #MainMenu {visibility: hidden;} footer {visibility: hidden;} [data-testid="stToolbar"] {visibility: hidden;} [data-testid="stDecoration"] {display: none;} header [data-testid="stSidebarCollapsedControl"] {visibility: visible !important;} [data-testid="collapsedControl"] {visibility: visible !important;}
     [data-testid="stSidebarNav"] {display: none !important;}
     
     /* Typography */
