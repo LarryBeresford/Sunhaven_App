@@ -66,14 +66,7 @@ st.markdown("""
     .stButton > button:active, .stDownloadButton > button:active { transform: scale(0.97) !important; box-shadow: inset 0 2px 6px rgba(0,0,0,0.25) !important; filter: brightness(0.92) !important; }
 
     /* Footer */
-    .footer-bar {
-        position: fixed; bottom: 0; left: 0; right: 0;
-        background: #0F172A !important; color: #94A3B8 !important;
-        text-align: center; padding: 8px 0;
-        font-size: 0.78rem; font-family: 'Inter', sans-serif;
-        letter-spacing: 0.05em; z-index: 99999 !important;
-        border-top: 2px solid #F97316;
-    }
+    
     .footer-bar span { color: #F97316 !important; font-weight: 700; }
     .block-container { padding-bottom: 3rem; }
 
