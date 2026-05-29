@@ -135,7 +135,7 @@ def apply_plotly_theme(fig):
     return fig
 
 def sanitizar_texto(texto):
-    return str(texto).replace('•', '-').replace('“', '"').replace('”', '"').replace('–', '-').encode('latin-1', 'replace').decode('latin-1')
+    return str(texto).replace('•', '-').replace('“', '"').replace('”', '"').replace('–', '-').replace('—', '-').encode('latin-1', 'replace').decode('latin-1')
 
 def tabla_centrada(pdf, headers, data, col_widths):
     start_x = (210 - sum(col_widths)) / 2
