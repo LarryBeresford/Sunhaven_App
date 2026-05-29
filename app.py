@@ -68,13 +68,14 @@ st.markdown("""
     /* Footer */
     .footer-bar {
         position: fixed; bottom: 0; left: 0; right: 0;
-        background: #0F172A; color: #94A3B8;
-        text-align: center; padding: 6px 0;
-        font-size: 0.75rem; font-family: 'Inter', sans-serif;
-        letter-spacing: 0.04em; z-index: 999;
-        border-top: 1px solid #1E293B;
+        background: #0F172A !important; color: #94A3B8 !important;
+        text-align: center; padding: 8px 0;
+        font-size: 0.78rem; font-family: 'Inter', sans-serif;
+        letter-spacing: 0.05em; z-index: 99999 !important;
+        border-top: 2px solid #F97316;
     }
-    .footer-bar span { color: #F97316; font-weight: 600; }
+    .footer-bar span { color: #F97316 !important; font-weight: 700; }
+    .block-container { padding-bottom: 3rem; }
 
 </style>
 """, unsafe_allow_html=True)
