@@ -23,7 +23,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PATH_CREDS = os.path.join(BASE_DIR, 'config', 'sunhaven-credentials.json')
 PATH_BITACORA = os.path.join(BASE_DIR, 'data', 'bitacora_interna.csv')
 
-st.set_page_config(page_title="Sunhaven Command Center", page_icon="📊", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Sunhaven BI Command Center", page_icon="📊", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
 <style>
@@ -1498,7 +1498,7 @@ def main():
             # ─────────────────────────────────────────────────────────────
             
         st.markdown("<hr style='margin: 1.5rem 0; border-color: #E2E8F0;'>", unsafe_allow_html=True)
-        if st.button("🔄 Sincronizar Datos DB", use_container_width=True):
+        if st.button("🔄 Sincronizar con Base de datos", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
 
