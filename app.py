@@ -71,7 +71,7 @@ HEX_NAVY, HEX_RED, HEX_GREEN, HEX_SUN = "#1e293b", "#dc2626", "#10b981", "#d3540
 C_NAVY, C_SUN, C_DARK, C_LIGHT = (31, 58, 82), (211, 84, 0), (44, 62, 80), (245, 247, 248)
 
 # --- REGLAS DE NEGOCIO ---
-ENFERMERAS_ROL_A = ["Consuelo Ceja Liborio", "Jaqueline Hernández Sosa"]
+ENFERMERAS_ROL_A = ["Consuelo Ceja Liborio", "Jaqueline Hernández Sosa", "Nireida Flores Núñez"]
 ENFERMERAS_ROL_B = ["Silvia Rodríguez Reynaga", "Guadalupe Georgia Lopez Ceja"]
 ENFERMERAS_NOCHE = ENFERMERAS_ROL_A + ENFERMERAS_ROL_B
 
