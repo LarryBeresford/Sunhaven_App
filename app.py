@@ -64,6 +64,18 @@ st.markdown("""
     .stButton > button[kind="primary"] { background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%) !important; border: none !important; color: white !important; }
     .stButton > button:hover, .stDownloadButton > button:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.15); filter: brightness(1.08); }
     .stButton > button:active, .stDownloadButton > button:active { transform: scale(0.97) !important; box-shadow: inset 0 2px 6px rgba(0,0,0,0.25) !important; filter: brightness(0.92) !important; }
+
+    /* Footer */
+    .footer-bar {
+        position: fixed; bottom: 0; left: 0; right: 0;
+        background: #0F172A; color: #94A3B8;
+        text-align: center; padding: 6px 0;
+        font-size: 0.75rem; font-family: 'Inter', sans-serif;
+        letter-spacing: 0.04em; z-index: 999;
+        border-top: 1px solid #1E293B;
+    }
+    .footer-bar span { color: #F97316; font-weight: 600; }
+
 </style>
 """, unsafe_allow_html=True)
 
