@@ -33,7 +33,7 @@ st.markdown("""
     
     /* Clean UI */
     #MainMenu {visibility: hidden;} footer {visibility: hidden;} [data-testid="stToolbar"] {visibility: hidden;} [data-testid="stDecoration"] {display: none;} header [data-testid="stSidebarCollapsedControl"] {visibility: visible !important;} [data-testid="collapsedControl"] {visibility: visible !important;}
-    [data-testid="stSidebarNav"] {display: none !important;}
+    
     
     /* Typography */
     h1, h2, h3 { color: #0F172A; font-weight: 800; letter-spacing: -0.025em; }
