@@ -1622,14 +1622,16 @@ def main():
             with c1:
                 st.markdown("<div class='premium-card'><h3 class='section-title'>Análisis de Pareto Operativo</h3>", unsafe_allow_html=True)
                 if not df_a.empty:
-                    fig = px.bar(df_a, x='index', y='V', text_auto='.1f', color_discrete_sequence=[HEX_NAVY])
+                    fig = px.bar(df_a, x='index', y='V', text_auto='.1f', color_discrete_sequence=[HEX_NAVY], labels={'index':'','V':'Cumplimiento (%)'})
+                    fig.update_layout(xaxis_title='', yaxis_title='Cumplimiento (%)')
                     fig.add_hline(y=90, line_dash="dash", line_color=HEX_RED, annotation_text="Meta 90%")
                     st.plotly_chart(apply_plotly_theme(fig), use_container_width=True, config={'displayModeBar': False})
                 st.markdown("</div>", unsafe_allow_html=True)
             with c2:
                 st.markdown("<div class='premium-card'><h3 class='section-title'>Análisis de Causa Raíz (Ishikawa)</h3>", unsafe_allow_html=True)
                 if not df_c.empty:
-                    fig_c = px.bar(df_c, x='V', y='index', orientation='h', text_auto='.1f', color_discrete_sequence=[HEX_SUN])
+                    fig_c = px.bar(df_c, x='V', y='index', orientation='h', text_auto='.1f', color_discrete_sequence=[HEX_SUN], labels={'index':'','V':'Cumplimiento (%)'})
+                    fig_c.update_layout(xaxis_title='Cumplimiento (%)', yaxis_title='')
                     fig_c.add_vline(x=90, line_dash="dash", line_color=HEX_NAVY)
                     st.plotly_chart(apply_plotly_theme(fig_c), use_container_width=True, config={'displayModeBar': False})
                 st.markdown("</div>", unsafe_allow_html=True)
