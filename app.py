@@ -101,6 +101,7 @@ SUPERVISORAS_ENFERMERIA = ["Blanca Aracely Figueroa Marroquín", "Yareli Yamile 
 ENFERMERAS_RETARDO      = set(ENFERMERAS_LISTA) - set(SUPERVISORAS_ENFERMERIA)  # Solo turno fijo, sin supervisoras
 CHECADORES_ESPECIALES = ["CESAR", "MONI", "MARTHACASTRO", "HUGO"] 
 HORA_ENTRADA_DIA, HORA_ENTRADA_NOCHE = datetime.strptime("08:15", "%H:%M").time(), datetime.strptime("20:15", "%H:%M").time()
+HORA_SALIDA_DIA   = datetime.strptime("19:45", "%H:%M").time()
 TIPO_INCIDENCIAS = ["Falta de uniforme (Leve)", "Uso de celular (Leve)", "No hacer entrega (Leve)", "No hacer ronda (Leve)", "Salida anticipada (Leve)", "AGRESIÓN / CONFLICTO (Grave)", "REGLA DE ORO (Grave)"]
 
 # ==========================================
@@ -1307,14 +1308,31 @@ def procesar_super_nomina(df_bio, df_bitacora, df_kaizen, mes_num, anio_num):
                     dt_ent = datetime.combine(datetime.today(), he)
                     dt_lim = datetime.combine(datetime.today(), lim)
                     min_tarde = int((dt_ent - dt_lim).total_seconds() / 60)
+                    turno_lbl = "turno noche" if nm in ENFERMERAS_NOCHE else "turno día"
                     ret_list.append({
                         "FECHA": f"{anio_num}-{mes_num:02d}-{int(row['Día']):02d}",
                         "EMPLEADO": nm,
                         "INCIDENCIA": "Retardo Biométrico",
-                        "OBSERVACION": f"Entro a las {ent} ({min_tarde} min tarde)"
+                        "OBSERVACION": f"Entró a las {ent} (Cubrió {turno_lbl})"
                     })
             except Exception:
                 pass
+
+            # Salida Anticipada (solo turno día)
+            if nm not in ENFERMERAS_NOCHE:
+                sal = str(row.get('Salida', '')).strip()
+                if sal and len(sal) == 5 and ':' in sal:
+                    try:
+                        hs = datetime.strptime(sal, "%H:%M").time()
+                        if hs < HORA_SALIDA_DIA:
+                            ret_list.append({
+                                "FECHA": f"{anio_num}-{mes_num:02d}-{int(row['Día']):02d}",
+                                "EMPLEADO": nm,
+                                "INCIDENCIA": "Salida Anticipada",
+                                "OBSERVACION": f"Salió a las {sal} (Cubrió turno día)"
+                            })
+                    except Exception:
+                        pass
 
     df_ret = pd.DataFrame(ret_list)
 
@@ -1388,9 +1406,10 @@ def procesar_super_nomina(df_bio, df_bitacora, df_kaizen, mes_num, anio_num):
     for emp in sorted(list(set(EMPLEADOS_DB.values()))):
         df_e   = df_todas[df_todas['EMPLEADO'] == emp]
         c_ret  = len(df_e[df_e['INCIDENCIA'] == 'Retardo Biométrico'])
+        c_sal  = len(df_e[df_e['INCIDENCIA'] == 'Salida Anticipada'])
         f_kz   = not df_e[df_e['INCIDENCIA'] == 'Falla Admin/Kaizen'].empty
         f_gr   = len(df_e[df_e['INCIDENCIA'].str.contains('Grave', case=False, na=False)])
-        f_otras = len(df_e) - c_ret - (1 if f_kz else 0)
+        f_otras = len(df_e) - c_ret - c_sal - (1 if f_kz else 0)
 
         bp = 500 if c_ret <= 3 else 0
         bu = 500 if f_otras == 0 else 0
