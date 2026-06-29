@@ -718,7 +718,7 @@ def generar_pdf_nomina(df_nomina, df_incidencias, df_retardos, stats_kaizen, pro
         pdf.set_font('Helvetica', '', 9)
 
         # Fechas de retardos
-        df_emp_ret = df_retardos[df_retardos['EMPLEADO'] == emp]
+        df_emp_ret = df_retardos[(df_retardos['EMPLEADO'] == emp) & (df_retardos['INCIDENCIA'] == 'Retardo Biométrico')]
         if not df_emp_ret.empty:
             fechas_ret = ", ".join(df_emp_ret['FECHA'].tolist())
             pdf.multi_cell(0, 5, sanitizar_texto(f"   Retardos biometricos ({c_ret}): {fechas_ret}"), 0, 'L')
