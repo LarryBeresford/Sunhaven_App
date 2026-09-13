@@ -1,14 +1,17 @@
 import qrcode
 from PIL import Image, ImageDraw, ImageFont
 import urllib.parse
+from pathlib import Path
 
 # Tu enlace semilla
 base_url = "https://docs.google.com/forms/d/e/1FAIpQLSf-uU63wGDWaRkU_KU_LDEL1k3c94QxhSFUvAzETuwNVqVBJQ/viewform?usp=pp_url&entry.857301786="
 
 # Las áreas exactas
 areas = ["Cocina", "Lavandería", "Limpieza"]
+OUTPUT_DIR = Path(__file__).resolve().parents[1] / "assets" / "qr_codes"
 
 def generar_qrs_servicios():
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     print("Iniciando generación de QRs para Servicios...")
     
     for area in areas:
@@ -39,8 +42,9 @@ def generar_qrs_servicios():
         draw.text(((img_w - text_w) // 2, img_h + 20), area, fill="black", font=font)
         
         # Guardar la imagen (quitamos el acento solo para el nombre del archivo en tu Mac)
-        nombre_archivo = f"QR_{area.replace('í', 'i')}_Sunhaven.png"
+        nombre_archivo = OUTPUT_DIR / f"QR_{area.replace('í', 'i')}_Sunhaven.png"
         fondo.save(nombre_archivo)
         print(f"✅ Listo: {nombre_archivo}")
 
-generar_qrs_servicios()
+if __name__ == "__main__":
+    generar_qrs_servicios()

@@ -1,6 +1,6 @@
 import qrcode
 from PIL import Image, ImageDraw, ImageFont
-import os
+from pathlib import Path
 
 enlace_semilla = "https://docs.google.com/forms/d/e/1FAIpQLScfT7XBjHsb96zMU16TLIi19W0-oOnBb5RnEC897yraS7UaaA/viewform?usp=pp_url&entry.1093011749=ID_AQUI"
 total_roperos = 28
@@ -8,8 +8,10 @@ PAGE_W, PAGE_H = 2550, 3300
 COLS, ROWS = 2, 4 
 CELL_W, CELL_H = PAGE_W // COLS, PAGE_H // ROWS
 QR_SIZE = 600 
+OUTPUT_DIR = Path(__file__).resolve().parents[1] / "assets" / "qr_codes"
 
 def generar_planillas():
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     pages = []
     current_page = Image.new('RGB', (PAGE_W, PAGE_H), 'white')
     draw = ImageDraw.Draw(current_page)
@@ -49,9 +51,10 @@ def generar_planillas():
     
     # --- LA SOLUCIÓN ANTI-ERRORES ---
     for idx, page in enumerate(pages):
-        nombre_archivo = f"Planilla_Pagina_{idx+1}.png"
+        nombre_archivo = OUTPUT_DIR / f"Planilla_Pagina_{idx+1}.png"
         page.save(nombre_archivo, "PNG")
         
     print(f"¡Éxito total! Se generaron {len(pages)} páginas listas para imprimir.")
 
-generar_planillas()
+if __name__ == "__main__":
+    generar_planillas()

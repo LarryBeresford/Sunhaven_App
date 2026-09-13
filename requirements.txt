@@ -9,3 +9,4 @@ seaborn
 openpyxl
 fpdf
 streamlit-option-menu
+qrcode[pil]

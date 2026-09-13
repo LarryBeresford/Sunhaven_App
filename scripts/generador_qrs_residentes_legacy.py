@@ -1,6 +1,6 @@
 import qrcode
 import urllib.parse
-import os
+from pathlib import Path
 
 # Tu enlace base exacto (sin el nombre al final)
 URL_BASE = "https://docs.google.com/forms/d/e/1FAIpQLScwNo875lTmDVgdWR0nk6Jx4tgf-H59pmpffoSipz-mPLE6Ow/viewform?usp=pp_url&entry.2042218305="
@@ -42,11 +42,10 @@ residentes = [
 ]
 
 def generar_qrs():
-    carpeta_salida = "QRs_Residentes"
+    carpeta_salida = Path(__file__).resolve().parents[1] / "assets" / "qr_codes" / "legacy_residentes"
     
     # Creamos la carpeta si no existe
-    if not os.path.exists(carpeta_salida):
-        os.makedirs(carpeta_salida)
+    carpeta_salida.mkdir(parents=True, exist_ok=True)
         
     print(f"🚀 Generando {len(residentes)} QRs de Rondines Nocturnos")
     
@@ -66,7 +65,7 @@ def generar_qrs():
         
         # Guardamos la imagen
         nombre_archivo = f"{residente}.png"
-        ruta_completa = os.path.join(carpeta_salida, nombre_archivo)
+        ruta_completa = carpeta_salida / nombre_archivo
         img.save(ruta_completa)
         print(f"Generado: {nombre_archivo}")
 
