@@ -108,7 +108,10 @@ ENFERMERAS_RETARDO      = set(ENFERMERAS_LISTA) - set(SUPERVISORAS_ENFERMERIA)  
 CHECADORES_ESPECIALES = ["CESAR", "MONI", "MARTHACASTRO", "HUGO"] 
 HORA_ENTRADA_DIA, HORA_ENTRADA_NOCHE = datetime.strptime("08:15", "%H:%M").time(), datetime.strptime("20:15", "%H:%M").time()
 HORA_SALIDA_DIA   = datetime.strptime("19:45", "%H:%M").time()
-TIPO_INCIDENCIAS = ["Falta de uniforme (Leve)", "Uso de celular (Leve)", "No hacer entrega (Leve)", "No hacer ronda (Leve)", "Salida anticipada (Leve)", "AGRESIÓN / CONFLICTO (Grave)", "REGLA DE ORO (Grave)"]
+MAX_RETARDOS_BONO_PUNTUALIDAD = 2
+RETARDOS_REGLA_ORO = 6
+MAX_LLAMADAS_UNIFORME = 2
+TIPO_INCIDENCIAS = ["Falta de uniforme (Leve)", "Uso de celular (Leve)", "No hacer entrega (Leve)", "No hacer ronda (Leve)", "Salida anticipada (Leve)", "Falta injustificada", "Falta justificada (IMSS)", "AGRESIÓN / CONFLICTO (Grave)", "REGLA DE ORO (Grave)"]
 
 # ==========================================
 # 1. CLASE MAESTRA DE PDF Y HELPERS UI
@@ -549,14 +552,14 @@ def generar_pdf_nomina(df_nomina, df_incidencias, df_retardos, stats_kaizen, pro
 
     ret_counts = df_retardos['EMPLEADO'].value_counts().head(12)
     if not ret_counts.empty:
-        bar_cols_r = ['#dc2626' if c >= 4 else '#d97706' if c == 3 else '#1e293b' for c in ret_counts.values]
+        bar_cols_r = ['#dc2626' if c >= 3 else '#d97706' if c == 2 else '#1e293b' for c in ret_counts.values]
         names_short = [n.split()[0] + ' ' + n.split()[-1] if len(n.split()) > 1 else n for n in ret_counts.index]
         y_pos = range(len(ret_counts))
         ax_ret.barh(list(y_pos), list(ret_counts.values), color=bar_cols_r)
         ax_ret.set_yticks(list(y_pos))
         ax_ret.set_yticklabels(names_short, fontsize=8)
-        ax_ret.axvline(x=4, color='red', linestyle='--', linewidth=1.2, label='Pierde bono (>=4)')
-        ax_ret.axvline(x=3, color='orange', linestyle='--', linewidth=1.2, label='En riesgo (3)')
+        ax_ret.axvline(x=3, color='red', linestyle='--', linewidth=1.2, label='Pierde bono (>=3)')
+        ax_ret.axvline(x=2, color='orange', linestyle='--', linewidth=1.2, label='En riesgo (2)')
         ax_ret.legend(fontsize=8)
     ax_ret.set_title('Ranking de Retardos por Colaborador', fontsize=11, fontweight='bold')
     ax_ret.set_xlabel('Retardos')
@@ -651,8 +654,8 @@ def generar_pdf_nomina(df_nomina, df_incidencias, df_retardos, stats_kaizen, pro
     pdf.set_font('Helvetica', '', 10)
     pdf.set_text_color(*C_DARK)
     pdf.multi_cell(0, 5, sanitizar_texto(
-        "Cada colaborador puede ganar hasta $1,500 en bonos: Puntualidad ($500, maximo 3 retardos tolerados), "
-        "Uniforme ($500, sin incidencias de imagen) y Admin/Kaizen ($500, requiere entregar propuesta mensual de mejora). "
+        "Cada colaborador puede ganar hasta $1,500 en bonos: Puntualidad ($500, maximo 2 retardos y sin faltas injustificadas), "
+        "Uniforme ($500, hasta 2 llamadas de atencion) y Admin/Kaizen ($500, requiere entregar propuesta mensual de mejora y no usar celular en horario laboral). "
         "Un bono en $0 indica que la falta correspondiente fue comprobada con evidencia biometrica o bitacora."
     ), 0, 'J')
     pdf.ln(3)
@@ -691,7 +694,7 @@ def generar_pdf_nomina(df_nomina, df_incidencias, df_retardos, stats_kaizen, pro
         ba    = int(emp_row['$ ADMIN'])
 
         perdio_algo = (total < 1500)
-        en_riesgo   = (c_ret == 3 and bp == 500)
+        en_riesgo   = (c_ret == MAX_RETARDOS_BONO_PUNTUALIDAD and bp == 500)
         if not perdio_algo and not en_riesgo:
             continue
 
@@ -725,8 +728,9 @@ def generar_pdf_nomina(df_nomina, df_incidencias, df_retardos, stats_kaizen, pro
             if bp == 0:
                 pdf.set_text_color(220, 38, 38)
                 pdf.set_font('Helvetica', 'B', 9)
+                motivo_puntualidad = "acumulo 3 o mas retardos" if c_ret >= 3 else "registro una falta injustificada"
                 pdf.cell(0, 5, sanitizar_texto(
-                    "   >> Bono Puntualidad PERDIDO: -$500 (supero el limite de 3 retardos)"
+                    f"   >> Bono Puntualidad PERDIDO: -$500 ({motivo_puntualidad})"
                 ), 0, 1)
                 pdf.set_text_color(*C_DARK)
                 pdf.set_font('Helvetica', '', 9)
@@ -750,7 +754,7 @@ def generar_pdf_nomina(df_nomina, df_incidencias, df_retardos, stats_kaizen, pro
                 f"   Incidencia {inc_row['FECHA']}: {inc_row['INCIDENCIA']} — {str(inc_row['OBSERVACION'])[:60]}"
             ), 0, 'L')
 
-        # Alerta: exactamente 3 retardos (en riesgo)
+        # Alerta: exactamente 2 retardos (en riesgo)
         if en_riesgo:
             pdf.ln(1)
             pdf.set_fill_color(255, 243, 205)
@@ -758,7 +762,7 @@ def generar_pdf_nomina(df_nomina, df_incidencias, df_retardos, stats_kaizen, pro
             pdf.set_text_color(133, 77, 14)
             pdf.set_font('Helvetica', 'B', 9)
             pdf.multi_cell(190, 6, sanitizar_texto(
-                "[!] ALERTA: Este colaborador tiene 3 retardos. "
+                "[!] ALERTA: Este colaborador tiene 2 retardos. "
                 "Un retardo mas y PIERDE el Bono de Puntualidad ($500)."
             ), 1, 'L', True)
             pdf.set_text_color(*C_DARK)
@@ -1381,22 +1385,27 @@ def procesar_super_nomina(df_bio, df_bitacora, df_kaizen, mes_num, anio_num):
     for emp in sorted(list(set(EMPLEADOS_DB.values()))):
         df_e   = df_todas[df_todas['EMPLEADO'] == emp]
         c_ret  = len(df_e[df_e['INCIDENCIA'] == 'Retardo Biométrico'])
-        c_sal  = len(df_e[df_e['INCIDENCIA'] == 'Salida Anticipada'])
-        f_kz   = not df_e[df_e['INCIDENCIA'] == 'Falla Admin/Kaizen'].empty
-        f_gr   = len(df_e[df_e['INCIDENCIA'].str.contains('Grave', case=False, na=False)])
-        f_otras = len(df_e) - c_ret - c_sal - (1 if f_kz else 0)
+        c_faltas = len(df_e[df_e['INCIDENCIA'].str.contains('Falta injustificada', case=False, na=False)])
+        c_uniforme = len(df_e[df_e['INCIDENCIA'].str.contains('Falta de uniforme', case=False, na=False)])
+        c_celular = len(df_e[df_e['INCIDENCIA'].str.contains('Uso de celular', case=False, na=False)])
+        f_kz = not df_e[df_e['INCIDENCIA'] == 'Falla Admin/Kaizen'].empty
+        f_gr = len(df_e[df_e['INCIDENCIA'].str.contains('Grave', case=False, na=False)])
+        c_otras = len(df_e) - c_ret - (1 if f_kz else 0)
 
-        bp = 500 if c_ret <= 3 else 0
-        bu = 500 if f_otras == 0 else 0
-        ba = 0   if f_kz    else 500
+        bp = 500 if c_ret <= MAX_RETARDOS_BONO_PUNTUALIDAD and c_faltas == 0 else 0
+        bu = 500 if c_uniforme <= MAX_LLAMADAS_UNIFORME else 0
+        ba = 500 if not f_kz and c_celular == 0 else 0
 
-        if f_gr > 0:
+        if f_gr > 0 or c_ret >= RETARDOS_REGLA_ORO:
             bp, bu, ba = 0, 0, 0
 
         nomina.append({
             "COLABORADOR": emp,
             "RETARDOS": c_ret,
-            "INCIDENCIAS LEVES/GRAVES": f_otras,
+            "FALTAS INJUSTIFICADAS": c_faltas,
+            "LLAMADAS UNIFORME": c_uniforme,
+            "USO DE CELULAR": c_celular,
+            "OTRAS INCIDENCIAS": c_otras,
             "$ PUNTUAL": bp,
             "$ UNIFORM": bu,
             "$ ADMIN": ba,
