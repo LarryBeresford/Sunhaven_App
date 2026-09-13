@@ -1,0 +1,11 @@
+streamlit
+pandas
+numpy
+gspread
+oauth2client
+plotly
+matplotlib
+seaborn
+openpyxl
+fpdf
+streamlit-option-menu
