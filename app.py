@@ -1146,37 +1146,6 @@ def generar_pdf_rondines(df_resumen, df_ron_raw, escaneos_totales, alertas_fraud
     shutil.rmtree(temp_dir, ignore_errors=True)
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
-def generar_pdf_legal_bytes(categorias_dict, checks_dict, porcentaje):
-    pdf = SunhavenPDF()
-    pdf.titulo_header = "REPORTE EJECUTIVO - BLINDAJE NORMATIVO"
-    pdf.cover_page("CUMPLIMIENTO LEGAL Y NORMATIVO", "Auditoría de Prevención Gubernamental", datetime.now().strftime("%d/%m/%Y"))
-    pdf.add_page()
-    pdf.set_font('Helvetica', 'B', 14)
-    pdf.set_text_color(*C_NAVY)
-    pdf.cell(0, 8, sanitizar_texto("ESTATUS GLOBAL DE BLINDAJE INSTITUCIONAL"), 0, 1, 'L')
-    pdf.set_font('Helvetica', '', 11)
-    pdf.set_text_color(*C_DARK)
-    pdf.cell(0, 8, sanitizar_texto(f"Nivel de cumplimiento general de la institución: {porcentaje:.1f}%"), 0, 1)
-    pdf.ln(5)
-    for cat, items in categorias_dict.items():
-        pdf.set_fill_color(220, 230, 240) 
-        pdf.set_text_color(*C_NAVY)
-        pdf.set_font('Helvetica', 'B', 8)
-        pdf.cell(190, 7, sanitizar_texto(f" {cat.upper()}"), 1, 1, 'L', True)
-        fill_row = False
-        for req in items:
-            estado = checks_dict.get(req, False)
-            pdf.set_fill_color(*C_LIGHT) if fill_row else pdf.set_fill_color(255, 255, 255)
-            pdf.set_text_color(*C_DARK)
-            pdf.set_font('Helvetica', '', 7.5)
-            req_texto = sanitizar_texto(f"   - {req}"[:115] + ("..." if len(req) > 112 else ""))
-            pdf.cell(150, 7, req_texto, 1, 0, 'L', fill_row)
-            pdf.set_text_color(39, 174, 96) if estado else pdf.set_text_color(231, 76, 60)
-            pdf.set_font('Helvetica', 'B', 8)
-            pdf.cell(40, 7, sanitizar_texto("CUMPLE" if estado else "PENDIENTE"), 1, 1, 'C', fill_row)
-            fill_row = not fill_row
-    return pdf.output(dest='S').encode('latin-1', 'replace')
-
 # ==========================================
 # 4. ETL Y CÁLCULOS
 # ==========================================
@@ -1605,7 +1574,7 @@ def main():
             st.plotly_chart(fig_gauge, use_container_width=True, config={'displayModeBar': False})
             st.markdown("</div>", unsafe_allow_html=True)
 
-        tabs_op = st.tabs(["Tablero Analítico", "Tendencias Base", "Evaluación RRHH", "Auditoría Legal", "Raw Data"])
+        tabs_op = st.tabs(["Tablero Analítico", "Tendencias Base", "Evaluación RRHH", "Raw Data"])
         
         with tabs_op[0]:
             if st.button("📄 Exportar Reporte Ejecutivo (PDF)", type="primary"):
@@ -1645,27 +1614,6 @@ def main():
             st.markdown("</div>", unsafe_allow_html=True)
 
         with tabs_op[3]:
-            cats = {
-                "REGULACIÓN SANITARIA Y OPERATIVA - COPRISJAL/SSA": ["[CRÍTICO - Anual] Aviso de Funcionamiento: Verificar documento vigente y exhibido.", "[CRÍTICO - Anual] Responsable Sanitario: Validar aviso y nombramiento registrado.", "[CRÍTICO - Diario] Medicamentos controlados: Verificar resguardo y control foliado.", "[ALTO - Mensual] Accesibilidad NOM-031: Verificar rampas y barandales.", "[CRÍTICO - Mensual] Expedientes clínicos: Validar integración y resguardo.", "[CRÍTICO - Semanal] Manejo RPBI: Verificar contenedores y bolsas.", "[ALTO - Diario] Higiene alimentaria: Control de temperaturas y limpieza en cocina."],
-                "SEGURIDAD Y SALUD LABORAL - STPS": ["[ALTO - Anual] RIT: Verificar Reglamento Interior de Trabajo firmado.", "[ALTO - Anual] NOM-035: Aplicar guía preventiva de riesgos psicosociales.", "[ALTO - Trimestral] Comisión Mixta: Validar actas y recorridos de seguridad.", "[ALTO - Semestral] Ergonomía (Movilización pacientes): Verificar capacitación y DC-3."],
-                "PROTECCIÓN CIVIL Y ECOLOGÍA MUNICIPAL": ["[CRÍTICO - Anual] Programa Interno PIPC: Validar autorización vigente.", "[CRÍTICO - Anual] Responsabilidad Civil: Verificar póliza de seguro vigente.", "[CRÍTICO - Anual] Dictamen estructural: Validar dictamen DRO.", "[CRÍTICO - Mensual] Extintores: Revisar vigencia, señalización y recarga.", "[CRÍTICO - Mensual] Detectores de humo: Validar funcionamiento.", "[ALTO - Mensual] Evacuación: Verificar rutas, luces y señalética.", "[ALTO - Anual] Brigadas: Validar constancias de capacitación (DC-3).", "[CRÍTICO - Semestral] Simulacros: Revisar bitácoras y formatos de evacuación."],
-                "CUMPLIMIENTO LEGAL Y PRIVACIDAD": ["[ALTO - Permanente] Aviso de privacidad INAI: Verificar exhibición y anexos.", "[CRÍTICO - Permanente] Datos sensibles: Confirmar consentimientos en expedientes.", "[ALTO - Permanente] Contratos de servicios: Verificar contratos firmados y vigentes.", "[ALTO - Anual] Contrato adhesión PROFECO: Confirmar registro vigente."]
-            }
-            if 'checks' not in st.session_state: st.session_state.checks = {i: False for sub in cats.values() for i in sub}
-            c_l1, c_l2 = st.columns([0.7, 0.3])
-            with c_l1:
-                for cat, items in cats.items():
-                    with st.expander(cat, expanded=True):
-                        for item in items: st.session_state.checks[item] = st.checkbox(item, value=st.session_state.checks[item], key=item)
-            pct = (sum(st.session_state.checks.values()) / len(st.session_state.checks)) * 100
-            with c_l2:
-                st.markdown(f"<div class='premium-card'><h3 class='section-title'>Índice de Protección: {int(pct)}%</h3>", unsafe_allow_html=True)
-                st.progress(pct / 100)
-                if st.button("Generar Reporte Legal", type="primary"): st.session_state['pl'] = generar_pdf_legal_bytes(cats, st.session_state.checks, pct)
-                if 'pl' in st.session_state: st.download_button("Descargar Auditoría PDF", data=st.session_state['pl'], file_name=f"Legal_{datetime.now().strftime('%d%m%Y')}.pdf", mime="application/pdf")
-                st.markdown("</div>", unsafe_allow_html=True)
-
-        with tabs_op[4]:
             st.info("Visualización de tuberías de ingesta bruta conectadas a Google Sheets.")
             sub1, sub2, sub3 = st.tabs(["Servicios Generales", "Enfermería Vespertina", "Rondines Nocturnos"])
             with sub1: st.dataframe(df_serv, use_container_width=True)
